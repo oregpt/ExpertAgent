@@ -9,8 +9,8 @@ import { AgentTheme, defaultTheme } from './theme';
 import { AdminThemeProvider, useAdminTheme, ThemeToggle } from './AdminThemeContext';
 
 // In production (same origin), use empty string for relative URLs
-// In development, use localhost:4000
-const apiBaseUrl = import.meta.env.PROD ? '' : 'http://localhost:4000';
+// In development, use VITE_API_URL or fall back to localhost:4500
+const apiBaseUrl = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:4500');
 
 interface NavLinkProps {
   href: string;

@@ -81,6 +81,12 @@ export async function getConversationWithMessages(conversationId: number) {
  * Check if an agent has MCP Hub enabled (via capabilities)
  */
 async function agentHasToolsEnabled(agentId: string): Promise<boolean> {
+  // v2: Check if soul/memory or deep tools features are enabled — these add tools regardless of MCP caps
+  const features = getFeatures();
+  if (features.soulMemory || features.deepTools) {
+    return true;
+  }
+
   // Check if any MCP capability is enabled for this agent
   const enabledCaps = await db
     .select()
