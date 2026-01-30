@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, timestamp, integer, serial, jsonb, customType } from 'drizzle-orm/pg-core';
+import { pgTable, text, varchar, timestamp, integer, serial, jsonb, customType, boolean, time } from 'drizzle-orm/pg-core';
 
 // Custom type for pgvector - stores as vector but accepts/returns number[]
 const vector = customType<{ data: number[]; driverData: string }>({
@@ -139,6 +139,52 @@ export const agentMemoryEmbeddings = pgTable('ai_agent_memory_embeddings', {
   lineStart: integer('line_start'),
   lineEnd: integer('line_end'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// ============================================================================
+// v2: Proactive Engine — Cron Jobs, Heartbeat Config, Task Runs
+// ============================================================================
+
+// Scheduled tasks (cron expressions or simple intervals)
+export const agentCronJobs = pgTable('ai_agent_cron_jobs', {
+  id: serial('id').primaryKey(),
+  agentId: varchar('agent_id', { length: 64 }).notNull(),
+  schedule: varchar('schedule', { length: 100 }).notNull(),  // cron expr or 'every 30m'
+  taskText: text('task_text').notNull(),
+  model: varchar('model', { length: 100 }),                  // optional model override
+  enabled: boolean('enabled').default(true),
+  lastRunAt: timestamp('last_run_at', { withTimezone: true }),
+  nextRunAt: timestamp('next_run_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Per-agent heartbeat configuration
+export const agentHeartbeatConfig = pgTable('ai_agent_heartbeat_config', {
+  agentId: varchar('agent_id', { length: 64 }).primaryKey(),
+  enabled: boolean('enabled').default(false),
+  intervalMinutes: integer('interval_minutes').default(30),
+  checklist: text('checklist'),                               // markdown checklist
+  quietHoursStart: time('quiet_hours_start'),                 // e.g. '23:00'
+  quietHoursEnd: time('quiet_hours_end'),                     // e.g. '08:00'
+  timezone: varchar('timezone', { length: 50 }).default('UTC'),
+  lastHeartbeatAt: timestamp('last_heartbeat_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Execution audit log for all proactive tasks
+export const agentTaskRuns = pgTable('ai_agent_task_runs', {
+  id: serial('id').primaryKey(),
+  agentId: varchar('agent_id', { length: 64 }).notNull(),
+  runType: varchar('run_type', { length: 20 }).notNull(),     // 'heartbeat', 'cron', 'background'
+  sourceId: integer('source_id'),                              // cron job id if applicable
+  taskText: text('task_text'),
+  status: varchar('status', { length: 20 }).default('running'), // 'running', 'completed', 'failed'
+  result: text('result'),                                       // agent's response
+  startedAt: timestamp('started_at', { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  error: text('error'),
 });
 
 // Legacy table - keeping for backwards compatibility

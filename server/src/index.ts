@@ -4,6 +4,7 @@ import { getMCPServerManager } from './mcp-hub';
 import { capabilityService } from './capabilities';
 import { initializeDatabase } from './db/init';
 import { initializeLicensing, getFeatures } from './licensing';
+import { proactiveEngine } from './proactive';
 
 const config = loadConfig();
 const app = createHttpApp();
@@ -58,4 +59,20 @@ app.listen(config.port, async () => {
   // Initialize MCP Hub and capabilities after server starts (if licensed)
   await initializeMCPHub();
   await initializeCapabilities();
+
+  // Start proactive engine (heartbeats, cron jobs) — no-op if feature disabled
+  proactiveEngine.start();
 });
+
+// ============================================================================
+// Graceful Shutdown
+// ============================================================================
+
+function shutdown(signal: string) {
+  console.log(`\n[server] Received ${signal} — shutting down...`);
+  proactiveEngine.stop();
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

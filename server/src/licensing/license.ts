@@ -84,6 +84,8 @@ export function validateLicenseKey(licenseKey: string): LicenseValidationResult 
       gitlabKbSync: decoded.features.gitlabKbSync ?? BASE_FEATURES.gitlabKbSync,
       soulMemory: decoded.features.soulMemory ?? BASE_FEATURES.soulMemory,
       deepTools: decoded.features.deepTools ?? BASE_FEATURES.deepTools,
+      proactive: decoded.features.proactive ?? BASE_FEATURES.proactive,
+      backgroundAgents: decoded.features.backgroundAgents ?? BASE_FEATURES.backgroundAgents,
     };
 
     const result: LicenseValidationResult = {

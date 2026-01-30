@@ -35,6 +35,14 @@ export interface FeatureFlags {
   // Deep Tools (v2) — web search, web fetch, and other real-world tools
   // If OFF → only v1 capabilities (MCP Hub / anyapi tools)
   deepTools: boolean;
+
+  // Proactive Engine (v2) — heartbeats, cron jobs, proactive behavior
+  // If OFF → no heartbeats, no cron. Purely reactive.
+  proactive: boolean;
+
+  // Background Agents (v2) — sub-agent spawning for fire-and-forget tasks
+  // If OFF → no spawnTask available
+  backgroundAgents: boolean;
 }
 
 /**
@@ -51,6 +59,8 @@ export const BASE_FEATURES: FeatureFlags = {
   gitlabKbSync: false,
   soulMemory: false,
   deepTools: false,
+  proactive: false,
+  backgroundAgents: false,
 };
 
 /**
@@ -67,6 +77,8 @@ export const FULL_FEATURES: FeatureFlags = {
   gitlabKbSync: true,
   soulMemory: true,
   deepTools: true,
+  proactive: true,
+  backgroundAgents: true,
 };
 
 // Current features (set on startup)
@@ -140,6 +152,8 @@ function summarizeFeatures(f: FeatureFlags): string {
   if (f.gitlabKbSync) parts.push('gitlabKbSync');
   if (f.soulMemory) parts.push('soulMemory');
   if (f.deepTools) parts.push('deepTools');
+  if (f.proactive) parts.push('proactive');
+  if (f.backgroundAgents) parts.push('backgroundAgents');
 
   return parts.length > 0 ? parts.join(', ') : 'BASE (no features)';
 }

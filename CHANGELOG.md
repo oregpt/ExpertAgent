@@ -1,5 +1,80 @@
 # Agent-in-a-Box v2 Changelog
 
+## 2.0.0-alpha.4 (2026-01-31)
+
+### Phase 3: Proactive Engine ✅
+
+Agents that act without being asked - heartbeats, cron jobs, and background tasks.
+
+#### 3A: Database Schema
+- Created `server/src/db/migrations/003_agent_cron_jobs.sql` — scheduled tasks table with cron/interval schedule, task text, model override, enable/disable
+- Created `server/src/db/migrations/004_agent_heartbeat_config.sql` — per-agent heartbeat config (interval, checklist, quiet hours, timezone)
+- Created `server/src/db/migrations/005_agent_task_runs.sql` — execution audit log for heartbeats, cron, and background tasks
+- Updated `server/src/db/schema.ts` with Drizzle definitions for `agentCronJobs`, `agentHeartbeatConfig`, `agentTaskRuns`
+- Updated `server/src/db/init.ts` to auto-create all three tables + indexes on startup
+
+#### 3B: Proactive Engine Service
+- Created `server/src/proactive/proactiveEngine.ts` — singleton polling engine
+  - `start()` — begins 60-second polling loop (no-op if `proactive` feature flag is off)
+  - `stop()` — cleanup on shutdown
+  - Checks for due heartbeats (enabled, interval elapsed, not in quiet hours)
+  - Checks for due cron jobs (enabled, next_run_at <= now)
+  - Guard against overlapping poll cycles
+- Created `server/src/proactive/heartbeatService.ts`
+  - `getConfig()` / `upsertConfig()` — heartbeat config CRUD
+  - `isDue()` — checks interval elapsed + quiet hours (handles overnight spans)
+  - `executeHeartbeat()` — builds prompt from checklist, sends to chat service, logs result
+  - `getAllEnabledConfigs()` — for polling loop
+- Created `server/src/proactive/cronService.ts`
+  - Full CRUD: `createJob`, `updateJob`, `deleteJob`, `listJobs`, `getJob`
+  - `getDueJobs()` — finds enabled jobs where next_run_at <= now
+  - `executeJob()` — sends task_text to chat service, updates timestamps, logs to task runs
+  - `calculateNextRun()` — schedule parser supporting:
+    - Simple intervals: `every 30m`, `every 1h`, `every 24h`, `every 2d`
+    - 5-field cron: wildcards, exact values, step (*/N), comma lists, ranges (A-B)
+    - Walks forward minute-by-minute (up to 8 days) to find next match
+  - No external cron libraries — lightweight pattern matching only
+- Created `server/src/proactive/backgroundAgent.ts`
+  - `spawnTask(agentId, taskText, options?)` — fire-and-forget isolated task execution
+  - Options: model override, timeout (default 2 min)
+  - Gated by `backgroundAgents` feature flag
+- Created `server/src/proactive/index.ts` — barrel export
+
+#### 3C: API Routes
+- Created `server/src/http/proactiveRoutes.ts` with all endpoints:
+  - `GET /api/agents/:id/heartbeat` — get heartbeat config
+  - `PUT /api/agents/:id/heartbeat` — update heartbeat config
+  - `GET /api/agents/:id/cron` — list cron jobs
+  - `POST /api/agents/:id/cron` — create cron job (validates schedule on create)
+  - `PUT /api/agents/:id/cron/:jobId` — update cron job
+  - `DELETE /api/agents/:id/cron/:jobId` — delete cron job
+  - `POST /api/agents/:id/cron/:jobId/run` — manually trigger (fire-and-forget)
+  - `GET /api/agents/:id/proactive/runs` — task run history (last 50, configurable up to 200)
+- All routes gated by `proactive` feature flag (403 if disabled)
+- Registered in `app.ts`
+
+#### 3D: Server Integration
+- `server/src/index.ts`: calls `proactiveEngine.start()` after server startup
+- Added graceful shutdown: SIGTERM/SIGINT call `proactiveEngine.stop()`
+
+#### 3E: Feature Flags
+- Added `proactive: boolean` to FeatureFlags interface
+- Added `backgroundAgents: boolean` to FeatureFlags interface
+- Updated `BASE_FEATURES` (both false), `FULL_FEATURES` (both true)
+- Added `FEATURE_PROACTIVE` and `FEATURE_BACKGROUND_AGENTS` env var support
+- Added to license key validation in `license.ts`
+- Added to feature summary logging
+
+### Design Principles
+- **In-process only** — No Redis, no Bull. Simple setInterval polling loop.
+- **Modularity** — proactive=false means engine doesn't start. App works as v1.
+- **No heavy libraries** — Custom cron parser handles common patterns (hourly, daily, weekly, step intervals)
+- **Chat service reuse** — Proactive tasks call generateReply() the same way user messages do
+- **Audit trail** — Every execution (heartbeat, cron, background) logged to ai_agent_task_runs
+- **Error resilience** — Failed tasks advance timestamps to prevent retry storms; errors logged but don't crash engine
+
+---
+
 ## 2.0.0-alpha.3 (2026-01-31)
 
 ### Phase 2: Deep Tool Ecosystem ✅

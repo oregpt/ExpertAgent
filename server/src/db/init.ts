@@ -336,7 +336,72 @@ async function createTablesIfNotExist(): Promise<void> {
     console.log('[db] HNSW vector index creation skipped (may already exist or pgvector not ready)');
   });
 
-  console.log('[db] All tables created/verified (including v2 soul & memory)');
+  // ============================================================================
+  // v2: Proactive Engine Tables
+  // ============================================================================
+
+  // Agent cron jobs table
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ai_agent_cron_jobs (
+      id SERIAL PRIMARY KEY,
+      agent_id VARCHAR(64) NOT NULL,
+      schedule VARCHAR(100) NOT NULL,
+      task_text TEXT NOT NULL,
+      model VARCHAR(100),
+      enabled BOOLEAN DEFAULT true,
+      last_run_at TIMESTAMPTZ,
+      next_run_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // Indexes for cron jobs
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_cron_agent ON ai_agent_cron_jobs(agent_id)
+  `).catch(() => {});
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_cron_next_run ON ai_agent_cron_jobs(next_run_at) WHERE enabled = true
+  `).catch(() => {});
+
+  // Agent heartbeat config table
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ai_agent_heartbeat_config (
+      agent_id VARCHAR(64) PRIMARY KEY,
+      enabled BOOLEAN DEFAULT false,
+      interval_minutes INT DEFAULT 30,
+      checklist TEXT,
+      quiet_hours_start TIME,
+      quiet_hours_end TIME,
+      timezone VARCHAR(50) DEFAULT 'UTC',
+      last_heartbeat_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // Agent task runs table (audit log)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ai_agent_task_runs (
+      id SERIAL PRIMARY KEY,
+      agent_id VARCHAR(64) NOT NULL,
+      run_type VARCHAR(20) NOT NULL,
+      source_id INT,
+      task_text TEXT,
+      status VARCHAR(20) DEFAULT 'running',
+      result TEXT,
+      started_at TIMESTAMPTZ DEFAULT NOW(),
+      completed_at TIMESTAMPTZ,
+      error TEXT
+    )
+  `);
+
+  // Index for task runs
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_task_runs_agent ON ai_agent_task_runs(agent_id)
+  `).catch(() => {});
+
+  console.log('[db] All tables created/verified (including v2 soul & memory + proactive engine)');
 }
 
 /**

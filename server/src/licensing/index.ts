@@ -79,6 +79,12 @@ function loadFeaturesFromEnv(): Partial<FeatureFlags> {
   const deepTools = parseBoolEnv(process.env.FEATURE_DEEP_TOOLS);
   if (deepTools !== undefined) features.deepTools = deepTools;
 
+  const proactive = parseBoolEnv(process.env.FEATURE_PROACTIVE);
+  if (proactive !== undefined) features.proactive = proactive;
+
+  const backgroundAgents = parseBoolEnv(process.env.FEATURE_BACKGROUND_AGENTS);
+  if (backgroundAgents !== undefined) features.backgroundAgents = backgroundAgents;
+
   return features;
 }
 
