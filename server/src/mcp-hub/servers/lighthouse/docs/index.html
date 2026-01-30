@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lighthouse MCP Server - API Reference | CantonLoop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;500;600;700&family=Monda:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Lighthouse Dark Theme - Neon Yellow-Green */
+      --bg-primary: #0d0d0d;
+      --bg-secondary: #141414;
+      --bg-sidebar: #0a0a0a;
+      --bg-card: #1a1a1a;
+      --bg-code: #0d0d0d;
+      
+      --text-primary: #f5f5f5;
+      --text-secondary: #a3a3a3;
+      --text-muted: #737373;
+      --text-light: #525252;
+      
+      /* Lighthouse neon yellow-green accent */
+      --accent-lime: #F3FF97;
+      --accent-lime-light: #f8ffbe;
+      --accent-lime-bg: rgba(243, 255, 151, 0.1);
+      --accent-lime-dim: rgba(243, 255, 151, 0.6);
+      --accent-purple: #a78bfa;
+      --accent-purple-bg: rgba(167, 139, 250, 0.1);
+      
+      --status-stable: #F3FF97;
+      --status-stable-bg: rgba(243, 255, 151, 0.15);
+      
+      --required-color: #f87171;
+      --border-color: rgba(243, 255, 151, 0.15);
+      --border-light: rgba(255, 255, 255, 0.08);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Monda', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .layout { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      position: fixed;
+      top: 0; left: 0;
+      height: 100vh;
+      overflow-y: auto;
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--accent-lime);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.25rem;
+      color: var(--bg-primary);
+      transform: rotate(45deg);
+    }
+
+    .logo-icon span {
+      transform: rotate(-45deg);
+    }
+
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .sidebar-subtitle {
+      font-size: 11px;
+      color: var(--accent-lime);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .jump-to {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .jump-to kbd {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: 'Inconsolata', monospace;
+    }
+
+    .sidebar-search {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-family: 'Monda', sans-serif;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent-lime);
+      box-shadow: 0 0 0 3px var(--accent-lime-bg);
+    }
+
+    .search-input::placeholder { color: var(--text-light); }
+
+    .sidebar-nav { padding: 8px 0; }
+
+    .nav-section {
+      padding: 12px 16px 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-lime);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px 8px 24px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 13px;
+      transition: all 0.15s;
+      border-left: 2px solid transparent;
+    }
+
+    .nav-item:hover {
+      background: var(--accent-lime-bg);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: var(--accent-lime-bg);
+      color: var(--accent-lime);
+      border-left-color: var(--accent-lime);
+    }
+
+    /* Main */
+    .main { flex: 1; margin-left: 280px; }
+
+    /* Ambient glow */
+    .main::before {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 30%;
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(243, 255, 151, 0.06) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .hero {
+      background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+      padding: 60px 48px 40px;
+      border-bottom: 1px solid var(--border-color);
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-lime-bg);
+      border: 1px solid var(--border-color);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--accent-lime);
+      margin-bottom: 16px;
+    }
+
+    .hero-badge::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--accent-lime);
+      border-radius: 50%;
+    }
+
+    .hero h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .hero p {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      max-width: 600px;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 32px;
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--accent-lime);
+      font-family: 'Inconsolata', monospace;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Content */
+    .content {
+      padding: 40px 48px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .category {
+      margin-bottom: 48px;
+    }
+
+    .category-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .category-header h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .category-count {
+      background: var(--accent-lime-bg);
+      color: var(--accent-lime);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* Tool Card */
+    .tool-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .tool-card:hover {
+      border-color: var(--accent-lime-dim);
+      box-shadow: 0 4px 24px rgba(243, 255, 151, 0.08);
+    }
+
+    .tool-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .tool-header:hover { background: rgba(255, 255, 255, 0.02); }
+
+    .tool-info { display: flex; align-items: center; gap: 12px; }
+
+    .tool-badge {
+      background: var(--accent-lime);
+      color: var(--bg-primary);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-family: 'Inconsolata', monospace;
+    }
+
+    .tool-name {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-family: 'Inconsolata', monospace;
+    }
+
+    .tool-desc {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-left: 12px;
+      padding-left: 12px;
+      border-left: 1px solid var(--border-light);
+    }
+
+    .tool-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--status-stable-bg);
+      color: var(--status-stable);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: currentColor;
+      border-radius: 50%;
+    }
+
+    .expand-icon {
+      color: var(--text-muted);
+      transition: transform 0.2s;
+    }
+
+    .tool-card.expanded .expand-icon {
+      transform: rotate(180deg);
+    }
+
+    /* Tool Body */
+    .tool-body {
+      display: none;
+      padding: 0 20px 20px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .tool-card.expanded .tool-body {
+      display: block;
+    }
+
+    .params-section {
+      margin-top: 20px;
+    }
+
+    .params-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .param-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .param-row:last-child { border-bottom: none; }
+
+    .param-name {
+      font-family: 'Inconsolata', monospace;
+      font-weight: 600;
+      color: var(--accent-lime);
+      min-width: 140px;
+    }
+
+    .param-required {
+      color: var(--required-color);
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 6px;
+    }
+
+    .param-type {
+      background: var(--bg-secondary);
+      color: var(--text-muted);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: 'Inconsolata', monospace;
+    }
+
+    .param-desc {
+      flex: 1;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .param-input {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: 'Inconsolata', monospace;
+      width: 200px;
+      outline: none;
+    }
+
+    .param-input:focus {
+      border-color: var(--accent-lime);
+    }
+
+    /* JSON Preview */
+    .json-section {
+      margin-top: 20px;
+    }
+
+    .json-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .json-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .copy-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-lime);
+      color: var(--bg-primary);
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Monda', sans-serif;
+    }
+
+    .copy-btn:hover {
+      background: var(--accent-lime-light);
+      transform: translateY(-1px);
+    }
+
+    .json-preview {
+      background: var(--bg-code);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Inconsolata', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-x: auto;
+      color: var(--text-secondary);
+    }
+
+    .json-preview .key { color: var(--accent-lime); }
+    .json-preview .string { color: #a78bfa; }
+    .json-preview .number { color: #f472b6; }
+
+    /* Example Response */
+    .example-section {
+      margin-top: 20px;
+    }
+
+    .example-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      border: 1px solid var(--border-color);
+      padding: 8px 14px;
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Monda', sans-serif;
+    }
+
+    .example-toggle:hover {
+      border-color: var(--accent-lime);
+      color: var(--accent-lime);
+    }
+
+    .example-content {
+      display: none;
+      margin-top: 12px;
+    }
+
+    .example-content.visible { display: block; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--accent-lime);
+      color: var(--bg-primary);
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: 0 8px 32px rgba(243, 255, 151, 0.3);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+
+    .toast.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Filters */
+    .filters {
+      display: flex;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      padding: 6px 14px;
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Monda', sans-serif;
+    }
+
+    .filter-btn:hover {
+      border-color: var(--accent-lime);
+      color: var(--accent-lime);
+    }
+
+    .filter-btn.active {
+      background: var(--accent-lime-bg);
+      border-color: var(--accent-lime);
+      color: var(--accent-lime);
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; }
+      .hero, .content { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-icon"><span>◆</span></div>
+        <div class="logo-text">
+          <span class="sidebar-title">Lighthouse</span>
+          <span class="sidebar-subtitle">MCP Server</span>
+        </div>
+      </div>
+      
+      <div class="jump-to">
+        <span>Jump to...</span>
+        <kbd>Ctrl /</kbd>
+      </div>
+      
+      <div class="sidebar-search">
+        <input type="text" class="search-input" placeholder="Search tools..." id="searchInput">
+      </div>
+      
+      <div class="filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="stable">Stable</button>
+      </div>
+      
+      <nav class="sidebar-nav" id="sidebarNav">
+        <!-- Generated by JS -->
+      </nav>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="hero">
+        <div class="hero-badge">Public API • No Key Required</div>
+        <h1>Lighthouse MCP Server</h1>
+        <p>5N Lighthouse Explorer API for the Canton Network. Query validators, parties, governance, transfers, prices, and more.</p>
+        <div class="hero-stats">
+          <div class="stat">
+            <span class="stat-value" id="totalTools">32</span>
+            <span class="stat-label">Total Tools</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="passRate">100%</span>
+            <span class="stat-label">Pass Rate</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="avgResponse">~150ms</span>
+            <span class="stat-label">Avg Response</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="content" id="toolsContent">
+        <!-- Generated by JS -->
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast">Copied to clipboard!</div>
+
+  <script>
+    // Tool definitions with VERBOSE descriptions for docs (SLIM in actual code)
+    const tools = [
+      // CNS
+      { name: 'cns_list', description: 'List CNS (Canton Name Service) records with pagination', category: 'CNS', params: [
+        { name: 'limit', type: 'number', required: false, desc: 'Max records (default 20, max 100)' },
+        { name: 'cursor', type: 'string', required: false, desc: 'Pagination cursor (RFC3339 timestamp)' },
+        { name: 'direction', type: 'string', required: false, desc: 'Pagination direction (next/previous)' },
+      ], exampleResponse: { data: [{ domain_name: "example.cc", party_address: "PAR::1220...", expires_at: "2027-01-01T00:00:00Z" }], nextCursor: "2027-01-01T00:00:00Z", prevCursor: null } },
+      { name: 'cns_get', description: 'Get CNS record details by domain name', category: 'CNS', params: [
+        { name: 'domainName', type: 'string', required: true, desc: 'CNS domain name (e.g., "myname.cc")' },
+      ], exampleResponse: { domain_name: "example.cc", party_address: "PAR::1220abc...", url: "https://example.com", created_at: "2025-06-15T10:00:00Z", expires_at: "2027-06-15T10:00:00Z" } },
+
+      // Contracts
+      { name: 'contracts_list', description: 'List contracts with cursor-based pagination', category: 'Contracts', params: [
+        { name: 'limit', type: 'number', required: false, desc: 'Max records (default 20)' },
+        { name: 'cursor', type: 'number', required: false, desc: 'Numeric contract ID cursor' },
+        { name: 'direction', type: 'string', required: false, desc: 'Pagination direction' },
+      ], exampleResponse: { data: [{ id: "00abc123...", template_id: "Splice.Amulet:Amulet", created_at: "2026-01-27T04:00:00Z" }], count: 100 } },
+      { name: 'contract_get', description: 'Get contract details by ID', category: 'Contracts', params: [
+        { name: 'id', type: 'string', required: true, desc: 'Contract ID' },
+      ], exampleResponse: { id: "00abc123...", template_id: "Splice.Amulet:Amulet", signatories: ["PAR::1220..."], created_at: "2026-01-27T04:00:00Z" } },
+
+      // Featured Apps
+      { name: 'featured_apps_get', description: 'Get list of featured applications on the Canton Network', category: 'Featured Apps', params: [], exampleResponse: { apps: [{ name: "Temple Wallet", provider: "temple-mainnet-1::1220..." }], count: 102 } },
+
+      // Governance
+      { name: 'governance_list', description: 'List all governance vote requests with aggregated vote counts', category: 'Governance', params: [], exampleResponse: { voteRequests: [{ id: "VR::abc...", type: "FeaturedAppRequest", acceptVotes: 10, rejectVotes: 2 }], totalCount: 50, totalSVs: 13 } },
+      { name: 'governance_stats', description: 'Get governance statistics (executed, expired, in-progress, rejected)', category: 'Governance', params: [], exampleResponse: { total_requests: 150, in_progress_count: 5, executed_count: 120, rejected_count: 10, expired_count: 15, total_votes: 1200, total_accept_votes: 1000, total_reject_votes: 200 } },
+      { name: 'governance_get', description: 'Get detailed governance vote request by ID including individual votes', category: 'Governance', params: [
+        { name: 'id', type: 'string', required: true, desc: 'Vote request ID' },
+      ], exampleResponse: { id: "VR::abc...", status: "executed", requester: "PAR::1220...", accept_votes: 10, reject_votes: 2, votes: [{ sv_identifier: "Digital-Asset-1", accept: true }] } },
+
+      // Me
+      { name: 'me_get', description: 'Get URL/participant information for the current session', category: 'Me', params: [], exampleResponse: { participant: "lighthouse.cantonloop.com", network: "mainnet" } },
+
+      // Party
+      { name: 'party_balance', description: 'Get CC (Canton Coin) balance for a party wallet', category: 'Party', params: [
+        { name: 'id', type: 'string', required: true, desc: 'Party address' },
+      ], exampleResponse: { balance: 1234.5678, party: "PAR::1220abc..." } },
+      { name: 'party_burns', description: 'List burns for a party with pagination (CC destruction events)', category: 'Party', params: [
+        { name: 'id', type: 'string', required: true, desc: 'Party address' },
+        { name: 'limit', type: 'number', required: false, desc: 'Max records (default 20)' },
+        { name: 'cursor_id', type: 'number', required: false, desc: 'Pagination cursor ID' },
+        { name: 'direction', type: 'string', required: false, desc: 'Pagination direction' },
+      ], exampleResponse: { burns: [{ id: 1, amount: 0.001, round: 80000 }], nextCursor: 100 } },
+      { name: 'party_pnl', description: 'Get profit/loss data for a party across rounds', category: 'Party', params: [
+        { name: 'id', type: 'string', required: true, desc: 'Party address' },
+        { name: 'limit', type: 'number', required: false, desc: 'Max records' },
+        { name: 'cursor_round', type: 'number', required: false, desc: 'Round cursor' },
+        { name: 'direction', type: 'string', required: false, desc: 'Pagination direction' },
+      ], exampleResponse: { pnl: [{ round: 80000, balance: 100.5, rewards: 0.5, burns: 0.001 }] } },
+      { name: 'party_rewards', description: 'List rewards earned by a party (validator, app, SV rewards)', category: 'Party', params: [
+        { name: 'id', type: 'string', required: true, desc: 'Party address' },
+        { name: 'limit', type: 'number', required: false, desc: 'Max records' },
+        { name: 'cursor_id', type: 'number', required: false, desc: 'Cursor ID' },
+        { name: 'direction', type: 'string', required: false, desc: 'Direction' },
+      ], exampleResponse: { rewards: [{ id: 1, amount: 16.15, type: "validator", round: 80000 }] } },
+      { name: 'party_burn_stats', description: 'Get aggregated burn statistics for a party in a time range', category: 'Party', params: [
+        { name: 'id', type: 'string', required: true, desc: 'Party address' },
+        { name: 'start_time', type: 'string', required: false, desc: 'Start time (RFC3339)' },
+        { name: 'end_time', type: 'string', required: false, desc: 'End time (RFC3339)' },
+      ], exampleResponse: { total_burns: 123, total_amount: 0.5 } },
+      { name: 'party_reward_stats', description: 'Get aggregated reward statistics (app + validator rewards)', category: 'Party', params: [
+        { name: 'id', type: 'string', required: true, desc: 'Party address' },
+        { name: 'start_time', type: 'string', required: false, desc: 'Start time (RFC3339)' },
+        { name: 'end_time', type: 'string', required: false, desc: 'End time (RFC3339)' },
+      ], exampleResponse: { total_rewards: 500, app_rewards: 100, validator_rewards: 400 } },
+      { name: 'party_transfers', description: 'List transfers involving a party (sent or received)', category: 'Party', params: [
+        { name: 'id', type: 'string', required: true, desc: 'Party address' },
+        { name: 'limit', type: 'number', required: false, desc: 'Max records' },
+        { name: 'cursor', type: 'number', required: false, desc: 'Transfer ID cursor' },
+        { name: 'direction', type: 'string', required: false, desc: 'Direction' },
+      ], exampleResponse: { transfers: [{ sender: "PAR::1220...", receiver: "PAR::1220...", amount: 100 }] } },
+      { name: 'party_transactions', description: 'List all transactions for a party', category: 'Party', params: [
+        { name: 'id', type: 'string', required: true, desc: 'Party address or numeric ID' },
+        { name: 'limit', type: 'number', required: false, desc: 'Max records (default 20, max 100)' },
+        { name: 'cursor', type: 'number', required: false, desc: 'Transaction ID cursor' },
+        { name: 'direction', type: 'string', required: false, desc: 'Direction' },
+      ], exampleResponse: { transactions: [{ update_id: "1220abc...", record_time: "2026-01-27T04:00:00Z" }] } },
+
+      // Preapprovals
+      { name: 'preapprovals_list', description: 'List preapproval records, optionally filtered by address', category: 'Preapprovals', params: [
+        { name: 'limit', type: 'number', required: false, desc: 'Max records (default 20, max 100)' },
+        { name: 'cursor', type: 'number', required: false, desc: 'Preapproval ID cursor' },
+        { name: 'address', type: 'string', required: false, desc: 'Filter by provider/receiver address' },
+        { name: 'direction', type: 'string', required: false, desc: 'Direction' },
+      ], exampleResponse: { preapprovals: [{ id: 1, provider: "PAR::1220...", receiver: "PAR::1220..." }] } },
+
+      // Prices
+      { name: 'price_get', description: 'Get latest CC (Canton Coin) price in USD', category: 'Prices', params: [], exampleResponse: { price: 0.1528 } },
+      { name: 'price_history', description: 'Get 24-hour price history in hourly buckets', category: 'Prices', params: [
+        { name: 'instrument', type: 'string', required: false, desc: 'Instrument IDs (default: amulet)' },
+        { name: 'tz', type: 'string', required: false, desc: 'Timezone (e.g., UTC, America/New_York)' },
+      ], exampleResponse: { amulet: [{ timestamp: "2026-01-27T00:00:00Z", price: 0.152 }, { timestamp: "2026-01-27T01:00:00Z", price: 0.153 }] } },
+
+      // Rounds
+      { name: 'rounds_list', description: 'List consensus rounds with pagination', category: 'Rounds', params: [
+        { name: 'before', type: 'number', required: false, desc: 'Fetch rounds before this number' },
+        { name: 'limit', type: 'number', required: false, desc: 'Max rounds (default 144, max 144)' },
+      ], exampleResponse: [{ round: 80882, open_at: "2026-01-27T04:54:15Z", close_at: "2026-01-27T05:04:15Z", total_tx: 150 }] },
+      { name: 'round_get', description: 'Get a specific round by number with reward rates', category: 'Rounds', params: [
+        { name: 'number', type: 'number', required: true, desc: 'Round number' },
+      ], exampleResponse: { round: 80882, open_at: "2026-01-27T04:54:15Z", total_reward: 1000, issuance_per_validator_reward_coupon: 16.15 } },
+
+      // Search
+      { name: 'search', description: 'Universal search for validators, parties, transactions, contracts, CNS', category: 'Search', params: [
+        { name: 'q', type: 'string', required: true, desc: 'Search query' },
+      ], exampleResponse: { validators: [{ name: "Digital-Asset-1" }], parties: [], contracts: [], cns: [] } },
+
+      // Stats
+      { name: 'stats_get', description: 'Get general chain statistics (supply, validators, rounds, etc.)', category: 'Stats', params: [], exampleResponse: { total_supply: "37.55B", validators: 779, super_validators: 13, featured_apps: 102, latest_round: 80883, cc_price: 0.153 } },
+      { name: 'stats_rounds_latest', description: 'Get latest rounds information with transaction counts', category: 'Stats', params: [], exampleResponse: { rounds: [{ round: 80883, total_tx: 0 }, { round: 80882, total_tx: 150 }] } },
+
+      // Super Validators
+      { name: 'super_validators_list', description: 'List all super validators and total count', category: 'Super Validators', params: [], exampleResponse: { superValidators: [{ name: "Digital-Asset-1", party: "PAR::1220..." }], count: 13 } },
+
+      // Transactions
+      { name: 'transactions_list', description: 'List transactions with pagination', category: 'Transactions', params: [
+        { name: 'limit', type: 'number', required: false, desc: 'Number of transactions (default 20)' },
+        { name: 'cursor', type: 'string', required: false, desc: 'Pagination cursor' },
+        { name: 'direction', type: 'string', required: false, desc: 'Direction (next/previous)' },
+      ], exampleResponse: { transactions: [{ update_id: "1220abc...", record_time: "2026-01-27T04:55:23Z" }] } },
+      { name: 'transaction_get', description: 'Get transaction details by update ID', category: 'Transactions', params: [
+        { name: 'updateId', type: 'string', required: true, desc: 'Update ID' },
+      ], exampleResponse: { update_id: "1220abc...", record_time: "2026-01-27T04:55:23Z", events: [{ event_type: "created_event" }] } },
+
+      // Transfers
+      { name: 'transfers_list', description: 'List all transfers with optional time filtering', category: 'Transfers', params: [
+        { name: 'limit', type: 'number', required: false, desc: 'Max records (default 20)' },
+        { name: 'cursor', type: 'number', required: false, desc: 'Transfer ID cursor' },
+        { name: 'direction', type: 'string', required: false, desc: 'Direction' },
+      ], exampleResponse: { transfers: [{ sender: "PAR::1220...", receiver: "PAR::1220...", amount: 35.0 }] } },
+      { name: 'transfer_get', description: 'Get transfer details by event ID', category: 'Transfers', params: [
+        { name: 'id', type: 'string', required: true, desc: 'Transfer event ID' },
+      ], exampleResponse: { sender: "PAR::1220...", receiver: "PAR::1220...", amount: 35.0, round: 80882, created_at: "2026-01-27T04:55:23Z" } },
+
+      // Validators
+      { name: 'validators_list', description: 'Get all validators on the Canton Network', category: 'Validators', params: [], exampleResponse: { validators: [{ name: "Digital-Asset-1", party: "PAR::1220..." }], count: 779 } },
+      { name: 'validator_get', description: 'Get validator details by ID including balance and stats', category: 'Validators', params: [
+        { name: 'id', type: 'string', required: true, desc: 'Validator ID' },
+      ], exampleResponse: { name: "Digital-Asset-1", party: "PAR::1220...", balance: 50000, traffic_status: "active" } },
+    ];
+
+    // Group tools by category
+    const categories = {};
+    tools.forEach(tool => {
+      if (!categories[tool.category]) categories[tool.category] = [];
+      categories[tool.category].push(tool);
+    });
+
+    // Render sidebar nav
+    function renderNav() {
+      const nav = document.getElementById('sidebarNav');
+      let html = '';
+      Object.keys(categories).forEach(cat => {
+        html += `<div class="nav-section">${cat}</div>`;
+        categories[cat].forEach(tool => {
+          html += `<a href="#${tool.name}" class="nav-item">${tool.name}</a>`;
+        });
+      });
+      nav.innerHTML = html;
+    }
+
+    // Render tools
+    function renderTools() {
+      const content = document.getElementById('toolsContent');
+      let html = '';
+      
+      Object.keys(categories).forEach(cat => {
+        html += `
+          <div class="category" id="cat-${cat.replace(/\s+/g, '-').toLowerCase()}">
+            <div class="category-header">
+              <h2>${cat}</h2>
+              <span class="category-count">${categories[cat].length} tools</span>
+            </div>
+        `;
+        
+        categories[cat].forEach(tool => {
+          html += renderToolCard(tool);
+        });
+        
+        html += '</div>';
+      });
+      
+      content.innerHTML = html;
+    }
+
+    function renderToolCard(tool) {
+      const paramsHtml = tool.params.length > 0 ? tool.params.map(p => `
+        <div class="param-row">
+          <div class="param-name">
+            ${p.name}${p.required ? '<span class="param-required">required</span>' : ''}
+          </div>
+          <span class="param-type">${p.type}</span>
+          <div class="param-desc">${p.desc}</div>
+          <input type="text" class="param-input" data-tool="${tool.name}" data-param="${p.name}" placeholder="${p.type}">
+        </div>
+      `).join('') : '<p style="color: var(--text-muted); font-size: 13px;">No parameters required</p>';
+
+      return `
+        <div class="tool-card" id="${tool.name}">
+          <div class="tool-header" onclick="toggleTool('${tool.name}')">
+            <div class="tool-info">
+              <span class="tool-badge">TOOL</span>
+              <span class="tool-name">${tool.name}</span>
+              <span class="tool-desc">${tool.description}</span>
+            </div>
+            <div class="tool-status">
+              <span class="status-badge">Stable</span>
+              <svg class="expand-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6,9 12,15 18,9"></polyline>
+              </svg>
+            </div>
+          </div>
+          <div class="tool-body">
+            <div class="params-section">
+              <div class="params-title">Parameters</div>
+              ${paramsHtml}
+            </div>
+            <div class="json-section">
+              <div class="json-header">
+                <span class="json-title">MCP Request</span>
+                <button class="copy-btn" onclick="copyJson('${tool.name}')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+                  </svg>
+                  Copy JSON
+                </button>
+              </div>
+              <pre class="json-preview" id="json-${tool.name}">${formatJson(tool.name, {})}</pre>
+            </div>
+            <div class="example-section">
+              <button class="example-toggle" onclick="toggleExample('${tool.name}')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9,18 15,12 9,6"></polyline>
+                </svg>
+                Show Example Response
+              </button>
+              <div class="example-content" id="example-${tool.name}">
+                <pre class="json-preview">${syntaxHighlight(JSON.stringify(tool.exampleResponse, null, 2))}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function formatJson(toolName, args) {
+      const json = {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: toolName,
+          arguments: args
+        }
+      };
+      return syntaxHighlight(JSON.stringify(json, null, 2));
+    }
+
+    function syntaxHighlight(json) {
+      return json
+        .replace(/(".*?")(\s*:)/g, '<span class="key">$1</span>$2')
+        .replace(/:\s*(".*?")/g, ': <span class="string">$1</span>')
+        .replace(/:\s*(\d+\.?\d*)/g, ': <span class="number">$1</span>');
+    }
+
+    function toggleTool(name) {
+      const card = document.getElementById(name);
+      card.classList.toggle('expanded');
+    }
+
+    function toggleExample(name) {
+      const example = document.getElementById(`example-${name}`);
+      example.classList.toggle('visible');
+    }
+
+    function copyJson(toolName) {
+      const tool = tools.find(t => t.name === toolName);
+      const args = {};
+      document.querySelectorAll(`[data-tool="${toolName}"]`).forEach(input => {
+        if (input.value) {
+          const val = input.value;
+          args[input.dataset.param] = isNaN(val) ? val : Number(val);
+        }
+      });
+      
+      const json = {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: toolName, arguments: args }
+      };
+      
+      navigator.clipboard.writeText(JSON.stringify(json, null, 2));
+      showToast();
+    }
+
+    function showToast() {
+      const toast = document.getElementById('toast');
+      toast.classList.add('visible');
+      setTimeout(() => toast.classList.remove('visible'), 2000);
+    }
+
+    // Update JSON preview on input
+    document.addEventListener('input', (e) => {
+      if (e.target.classList.contains('param-input')) {
+        const toolName = e.target.dataset.tool;
+        const args = {};
+        document.querySelectorAll(`[data-tool="${toolName}"]`).forEach(input => {
+          if (input.value) {
+            const val = input.value;
+            args[input.dataset.param] = isNaN(val) ? val : Number(val);
+          }
+        });
+        document.getElementById(`json-${toolName}`).innerHTML = formatJson(toolName, args);
+      }
+    });
+
+    // Search
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      document.querySelectorAll('.tool-card').forEach(card => {
+        const name = card.id.toLowerCase();
+        const desc = card.querySelector('.tool-desc').textContent.toLowerCase();
+        card.style.display = (name.includes(query) || desc.includes(query)) ? 'block' : 'none';
+      });
+    });
+
+    // Keyboard shortcut
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        document.getElementById('searchInput').focus();
+      }
+    });
+
+    // Init
+    renderNav();
+    renderTools();
+  </script>
+</body>
+</html>

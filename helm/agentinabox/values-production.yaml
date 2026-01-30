@@ -1,0 +1,98 @@
+# Production values for agentinabox
+# Copy this file and fill in your values
+
+replicaCount: 2
+
+image:
+  repository: your-registry.com/agentinabox
+  pullPolicy: Always
+  tag: "1.0.0"
+
+# Uncomment if using private registry
+# imagePullSecrets:
+#   - name: regcred
+
+service:
+  type: ClusterIP
+  port: 4000
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+  hosts:
+    - host: agentinabox.yourdomain.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: agentinabox-tls
+      hosts:
+        - agentinabox.yourdomain.com
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2048Mi
+  requests:
+    cpu: 500m
+    memory: 1024Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+persistence:
+  enabled: true
+  storageClass: "standard"  # Change to your storage class
+  size: 20Gi
+
+config:
+  nodeEnv: production
+  port: 4000
+  defaultModel: "claude-sonnet-4-20250514"
+  features:
+    multiAgent: true
+    multimodal: true
+    mcpHub: true
+    customBranding: true
+
+# IMPORTANT: Use external secret management in production
+# Option 1: Fill these in (less secure)
+secrets:
+  databaseUrl: ""      # postgresql://user:pass@host:5432/db?sslmode=require
+  anthropicApiKey: ""  # sk-ant-...
+  openaiApiKey: ""     # sk-proj-...
+  licenseSecret: ""    # Provided by AgenticLedger
+  licenseKey: ""       # JWT token
+
+# Option 2: Use existing secret (recommended)
+# existingSecret: "agentinabox-production-secrets"
+
+# Pod disruption budget for HA
+# podDisruptionBudget:
+#   minAvailable: 1
+
+nodeSelector: {}
+
+tolerations: []
+
+# Spread pods across nodes
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - agentinabox
+          topologyKey: kubernetes.io/hostname

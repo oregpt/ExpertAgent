@@ -1,0 +1,211 @@
+# Default values for agentinabox
+# This is a YAML-formatted file.
+
+# Number of replicas
+replicaCount: 1
+
+image:
+  repository: agentinabox
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 4000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: agentinabox.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: agentinabox-tls
+  #    hosts:
+  #      - agentinabox.local
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1024Mi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Persistent volume for uploads
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 5Gi
+  # existingClaim: ""
+
+# Application configuration
+config:
+  # Node environment
+  nodeEnv: production
+
+  # Server port (should match service.port)
+  port: 4000
+
+  # Default LLM model
+  defaultModel: "claude-sonnet-4-20250514"
+
+  # Feature flags
+  features:
+    multiAgent: false
+    multimodal: true
+    mcpHub: true
+    customBranding: true
+
+# Secrets - these should be provided via --set or external secret management
+# IMPORTANT: Never commit actual secrets to git!
+secrets:
+  # Option 1: Separate database fields (RECOMMENDED - more secure)
+  # Use this instead of databaseUrl for better security
+  # database:
+  #   host: "your-db-host.example.com"
+  #   port: "5432"
+  #   name: "agentinabox"
+  #   username: "dbuser"
+  #   password: ""  # Provide via --set secrets.database.password=xxx
+  #   sslMode: "require"
+
+  # Option 2: Full connection string (LEGACY - avoid if possible)
+  # Format: postgresql://user:password@host:5432/database?sslmode=require
+  databaseUrl: ""
+
+  # Anthropic API key for Claude (REQUIRED)
+  anthropicApiKey: ""
+
+  # OpenAI API key for embeddings (REQUIRED)
+  openaiApiKey: ""
+
+  # License secret (REQUIRED)
+  licenseSecret: ""
+
+  # License key JWT (REQUIRED)
+  licenseKey: ""
+
+  # Optional API keys
+  xaiApiKey: ""
+  geminiApiKey: ""
+
+# Use existing secret instead of creating one
+existingSecret: ""
+
+# External Secrets Operator (ESO) integration
+# Use this to pull secrets from AWS Secrets Manager, HashiCorp Vault, GCP Secret Manager, etc.
+# Requires: External Secrets Operator installed in your cluster
+# Install: helm install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace
+externalSecrets:
+  enabled: false
+
+  # How often to refresh secrets from the external source
+  refreshInterval: "1h"
+
+  # SSL mode for database connection
+  dbSslMode: "require"
+
+  # Reference to your SecretStore or ClusterSecretStore
+  secretStoreRef:
+    name: ""           # e.g., "aws-secrets-manager", "vault-backend", "gcp-secret-manager"
+    kind: "ClusterSecretStore"  # or "SecretStore" for namespace-scoped
+
+  # Remote secret reference
+  remoteRef:
+    # The key/path in your secrets manager where credentials are stored
+    key: ""            # e.g., "agentinabox/production" or "secret/data/agentinabox"
+
+    # Property names in your secret (customize if your secret uses different field names)
+    properties:
+      # Database (separate fields for security)
+      dbHost: "db_host"
+      dbPort: "db_port"
+      dbName: "db_name"
+      dbUser: "db_user"
+      dbPassword: "db_password"
+      # dbSslMode: "db_ssl_mode"  # Optional, defaults to "require"
+
+      # API Keys
+      anthropicApiKey: "anthropic_api_key"
+      openaiApiKey: "openai_api_key"
+
+      # License
+      licenseSecret: "license_secret"
+      licenseKey: "license_key"
+
+      # Optional
+      # xaiApiKey: "xai_api_key"
+      # geminiApiKey: "gemini_api_key"
+
+# Health check configuration
+healthCheck:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+# PostgreSQL subchart (optional - set enabled: true to deploy PostgreSQL)
+# Requires: helm repo add bitnami https://charts.bitnami.com/bitnami
+postgresql:
+  enabled: false
+  auth:
+    postgresPassword: ""
+    database: agentinabox
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+    # pgvector extension must be enabled manually or use a pgvector-enabled image
+    initdb:
+      scripts:
+        init-pgvector.sql: |
+          CREATE EXTENSION IF NOT EXISTS vector;

@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CCView MCP Server - API Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f7f8f9;
+      --bg-sidebar: #f7f8f9;
+      --bg-card: #ffffff;
+      --bg-code: #0f1419;
+      
+      --text-primary: #1a1a1a;
+      --text-secondary: #4a5568;
+      --text-muted: #718096;
+      --text-light: #a0aec0;
+      
+      --accent-teal: #0d7377;
+      --accent-teal-light: #14919b;
+      --accent-teal-bg: #e6f4f4;
+      --accent-green: #22c55e;
+      --accent-green-bg: #dcfce7;
+      
+      --status-stable: #22c55e;
+      --status-stable-bg: #dcfce7;
+      --status-experimental: #f59e0b;
+      --status-experimental-bg: #fef3c7;
+      --status-deprecated: #ef4444;
+      --status-deprecated-bg: #fee2e2;
+      
+      --required-color: #dc2626;
+      --border-color: #e2e8f0;
+      --border-light: #edf2f7;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .layout { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      position: fixed;
+      top: 0; left: 0;
+      height: 100vh;
+      overflow-y: auto;
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-primary);
+    }
+
+    .sidebar-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-subtitle {
+      font-size: 11px;
+      color: var(--text-light);
+    }
+
+    .jump-to {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .jump-to kbd {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .sidebar-search {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent-teal);
+      box-shadow: 0 0 0 3px var(--accent-teal-bg);
+    }
+
+    .search-input::placeholder { color: var(--text-light); }
+
+    .sidebar-nav { padding: 8px 0; }
+
+    .nav-section {
+      padding: 8px 16px 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px 6px 24px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 13px;
+      transition: all 0.15s;
+      border-left: 2px solid transparent;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: var(--accent-teal-bg);
+      color: var(--accent-teal);
+      border-left-color: var(--accent-teal);
+    }
+
+    .nav-badge {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      background: var(--accent-teal-bg);
+      color: var(--accent-teal);
+    }
+
+    /* Main */
+    .main { flex: 1; margin-left: 260px; }
+
+    .hero {
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 32px 48px;
+    }
+
+    .hero-breadcrumb {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .hero h1 {
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .hero-description {
+      font-size: 15px;
+      color: var(--text-secondary);
+      max-width: 600px;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 24px;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .hero-stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent-teal);
+    }
+
+    .hero-stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .content { padding: 32px 48px; max-width: 1400px; }
+
+    /* Tool Card */
+    .tool-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .tool-card:target { box-shadow: 0 0 0 2px var(--accent-teal); }
+
+    .tool-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .tool-method {
+      padding: 4px 8px;
+      background: var(--accent-teal-bg);
+      color: var(--accent-teal);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .tool-endpoint {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--text-secondary);
+      flex: 1;
+    }
+
+    .tool-status {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .tool-status.stable { background: var(--status-stable-bg); color: var(--status-stable); }
+    .tool-status.experimental { background: var(--status-experimental-bg); color: var(--status-experimental); }
+
+    .tool-body { display: grid; grid-template-columns: 1fr 420px; }
+
+    .tool-details {
+      padding: 24px;
+      border-right: 1px solid var(--border-color);
+    }
+
+    .tool-name {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .tool-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+
+    /* Parameters */
+    .params-list {
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .param-row {
+      display: flex;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .param-row:last-child { border-bottom: none; }
+
+    .param-info { flex: 1; }
+
+    .param-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .param-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .param-type { font-size: 12px; color: var(--text-muted); }
+    .param-required { font-size: 11px; color: var(--required-color); font-weight: 500; }
+    .param-desc { font-size: 13px; color: var(--text-secondary); }
+
+    .param-input { width: 160px; }
+
+    .param-input input {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 13px;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      transition: border-color 0.2s;
+    }
+
+    .param-input input:focus {
+      outline: none;
+      border-color: var(--accent-teal);
+    }
+
+    .param-input input::placeholder { color: var(--text-light); }
+
+    .no-params {
+      padding: 16px;
+      color: var(--text-muted);
+      font-size: 13px;
+      text-align: center;
+      background: var(--bg-secondary);
+      border-radius: 6px;
+    }
+
+    /* Code Panel */
+    .tool-code {
+      background: var(--bg-code);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .code-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #e6edf3;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .code-actions { display: flex; gap: 8px; }
+
+    .copy-btn {
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #e6edf3;
+    }
+
+    .copy-btn:hover { background: rgba(255,255,255,0.15); }
+
+    .copy-btn svg { width: 14px; height: 14px; }
+
+    .code-block {
+      background: #161b22;
+      border-radius: 6px;
+      flex: 1;
+      min-height: 120px;
+    }
+
+    .code-content {
+      padding: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #e6edf3;
+      overflow-x: auto;
+    }
+
+    .code-content pre { margin: 0; white-space: pre-wrap; }
+
+    .code-string { color: #a5d6ff; }
+    .code-url { color: #7ee787; }
+    .code-keyword { color: #ff7b72; }
+    .code-number { color: #79c0ff; }
+
+    /* Response Section */
+    .response-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .response-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .response-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #e6edf3;
+      text-transform: uppercase;
+    }
+
+    .response-toggle {
+      font-size: 11px;
+      color: var(--accent-teal-light);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .response-codes {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .response-code {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: #8b949e;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+
+    .response-code:hover { background: rgba(255,255,255,0.1); }
+    .response-code.active { background: rgba(255,255,255,0.15); color: #e6edf3; }
+
+    .response-code .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .response-code .dot.success { background: var(--accent-green); }
+    .response-code .dot.error { background: #f85149; }
+
+    .response-body {
+      background: #161b22;
+      border-radius: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .response-body.visible { display: block; }
+
+    .response-body pre {
+      padding: 12px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      color: #8b949e;
+      margin: 0;
+    }
+
+    /* Category Header */
+    .category-header {
+      margin: 32px 0 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .category-header:first-child { margin-top: 0; }
+
+    .category-header h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--accent-teal);
+    }
+
+    .category-count {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    /* Filter Bar */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .filter-btn {
+      padding: 6px 12px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn:hover {
+      border-color: var(--accent-teal);
+      color: var(--accent-teal);
+    }
+
+    .filter-btn.active {
+      background: var(--accent-teal);
+      border-color: var(--accent-teal);
+      color: white;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1a1a1a;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+
+    .toast.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success { background: var(--accent-teal); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+    ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #cbd5e0; }
+
+    @media (max-width: 1200px) {
+      .tool-body { grid-template-columns: 1fr; }
+      .tool-details { border-right: none; border-bottom: 1px solid var(--border-color); }
+    }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; }
+      .hero, .content { padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">CCView MCP Server</div>
+        <div class="sidebar-subtitle">Model Context Protocol API</div>
+      </div>
+      <div class="jump-to"><span>JUMP TO</span><kbd>CTRL-/</kbd></div>
+      <div class="sidebar-search">
+        <input type="text" class="search-input" placeholder="Search tools..." id="searchInput">
+      </div>
+      <div class="filter-bar">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="stable">Stable</button>
+        <button class="filter-btn" data-filter="experimental">Beta</button>
+      </div>
+      <nav class="sidebar-nav" id="sidebarNav"></nav>
+    </aside>
+
+    <main class="main">
+      <div class="hero">
+        <div class="hero-breadcrumb">CCVIEW MCP › API Reference</div>
+        <h1>CCView MCP Server</h1>
+        <p class="hero-description">
+          Model Context Protocol server for the Canton Network. Query blockchain data, 
+          governance proposals, validators, token transfers, and more via AI agents.
+        </p>
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <div class="hero-stat-value" id="statTotal">41</div>
+            <div class="hero-stat-label">Total Tools</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-value" id="statStable">32</div>
+            <div class="hero-stat-label">Stable</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-value" id="statExperimental">9</div>
+            <div class="hero-stat-label">Experimental</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-value">11</div>
+            <div class="hero-stat-label">Categories</div>
+          </div>
+        </div>
+      </div>
+      <div class="content" id="toolsContainer"></div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // Tool definitions with example responses
+    const TOOLS = [
+      { name: 'governance_list_active', description: 'List active governance proposals on the Canton Network', status: 'stable', category: 'Governance', params: [{ name: 'offset', type: 'number', required: false, description: 'Pagination offset (default: 0)' }, { name: 'limit', type: 'number', required: false, description: 'Number of results (default: 10, max: 100)' }], exampleResponse: { total: 5, items: [{ tracking_cid: "00abc123...", vote_type: "AmuletRulesConfig", status: "active", created_at: "2024-01-15T10:30:00Z" }] } },
+      { name: 'governance_list_completed', description: 'List completed governance proposals', status: 'stable', category: 'Governance', params: [{ name: 'offset', type: 'number', required: false, description: 'Pagination offset' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { total: 42, items: [{ tracking_cid: "00def456...", vote_type: "DsoRulesConfig", status: "completed", result: "accepted" }] } },
+      { name: 'governance_search', description: 'Search all governance proposals', status: 'stable', category: 'Governance', params: [{ name: 'offset', type: 'number', required: false, description: 'Pagination offset' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }, { name: 'votes_filter_type', type: 'string', required: false, description: 'Filter by vote type' }, { name: 'search_arg', type: 'string', required: false, description: 'Search term' }], exampleResponse: { total: 12, items: [] } },
+      { name: 'governance_price_votes', description: 'Get governance price votes', status: 'stable', category: 'Governance', params: [{ name: 'offset', type: 'number', required: false, description: 'Pagination offset' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { votes: [{ validator: "Digital Asset", price_usd: 0.15 }] } },
+      { name: 'governance_details', description: 'Get details for a specific governance proposal', status: 'stable', category: 'Governance', params: [{ name: 'tracking_cid', type: 'string', required: true, description: 'The governance tracking CID' }], exampleResponse: { tracking_cid: "00abc123...", vote_type: "AmuletRulesConfig", votes_for: 8, votes_against: 2, status: "active" } },
+      { name: 'governance_statistics', description: 'Get overall governance statistics', status: 'stable', category: 'Governance', params: [], exampleResponse: { total_proposals: 47, active: 5, completed: 42, acceptance_rate: 0.89 } },
+      
+      { name: 'ans_check_availability', description: 'Check if an ANS name is available (returns 204 if available, 409 if taken)', status: 'stable', category: 'ANS', params: [{ name: 'name', type: 'string', required: true, description: 'ANS name in DNS-like format' }], exampleResponse: { available: true, name: "user.cns" } },
+      { name: 'ans_list_by_party', description: 'List ANS names owned by a party', status: 'stable', category: 'ANS', params: [{ name: 'party_id', type: 'string', required: true, description: 'The party ID' }], exampleResponse: { names: ["alice.cns", "alice-wallet.cns"], party_id: "PAR::example::1234" } },
+      { name: 'ans_context_by_name', description: 'Get ANS context for a name', status: 'stable', category: 'ANS', params: [{ name: 'ans', type: 'string', required: true, description: 'The ANS name' }], exampleResponse: { name: "alice.cns", party_id: "PAR::example::1234", created_at: "2024-01-10T08:00:00Z" } },
+      { name: 'ans_context_by_party', description: 'Get ANS context for a party', status: 'stable', category: 'ANS', params: [{ name: 'party_id', type: 'string', required: true, description: 'The party ID' }], exampleResponse: { party_id: "PAR::example::1234", names: ["alice.cns"], balance: "1000.00" } },
+      { name: 'ans_request_status', description: 'Get ANS request status by reference', status: 'experimental', category: 'ANS', params: [{ name: 'reference', type: 'string', required: true, description: 'The request reference' }], exampleResponse: { reference: "ref123", status: "pending", name: "newname.cns" } },
+      
+      { name: 'super_validators_escrow', description: 'List super validators in escrow', status: 'stable', category: 'Super Validators', params: [{ name: 'offset', type: 'number', required: false, description: 'Pagination offset' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { total: 13, validators: [{ name: "Digital Asset", escrow_cc: "10000000" }] } },
+      { name: 'super_validators_hosted', description: 'List hosted super validators', status: 'stable', category: 'Super Validators', params: [{ name: 'offset', type: 'number', required: false, description: 'Pagination offset' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { total: 8, validators: [] } },
+      { name: 'super_validators_standalone', description: 'List standalone super validators', status: 'stable', category: 'Super Validators', params: [{ name: 'offset', type: 'number', required: false, description: 'Pagination offset' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { total: 5, validators: [] } },
+      { name: 'super_validators_onboarded', description: 'List onboarded validators', status: 'experimental', category: 'Super Validators', params: [{ name: 'offset', type: 'number', required: false, description: 'Pagination offset' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }, { name: 'sv_party_id', type: 'string', required: false, description: 'Super validator party ID' }], exampleResponse: { validators: [], total: 0 } },
+      
+      { name: 'validators_list', description: 'List all validators on the Canton Network', status: 'stable', category: 'Validators', params: [{ name: 'offset', type: 'number', required: false, description: 'Pagination offset' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }, { name: 'sort_field', type: 'string', required: false, description: 'Field to sort by' }, { name: 'sort_order', type: 'string', required: false, description: 'asc or desc' }], exampleResponse: { total: 779, validators: [{ id: "VAL::abc123", name: "Validator 1", total_rewards: "5000.00" }] } },
+      { name: 'validator_details', description: 'Get details for a specific validator', status: 'stable', category: 'Validators', params: [{ name: 'validator_id', type: 'string', required: true, description: 'The validator ID' }], exampleResponse: { id: "VAL::abc123", name: "My Validator", party_id: "PAR::xyz", total_rewards: "5000.00", status: "active" } },
+      { name: 'validator_statistics', description: 'Get statistics for a validator', status: 'stable', category: 'Validators', params: [{ name: 'validator_id', type: 'string', required: true, description: 'The validator ID' }], exampleResponse: { total_rewards: "5000.00", uptime: 0.99, delegators: 15 } },
+      { name: 'validator_performance_ranged', description: 'Get validator performance over a date range', status: 'experimental', category: 'Validators', params: [{ name: 'validator_id', type: 'string', required: true, description: 'The validator ID' }, { name: 'start', type: 'string', required: false, description: 'Start date (YYYY-MM-DD)' }, { name: 'end', type: 'string', required: false, description: 'End date (YYYY-MM-DD)' }], exampleResponse: { performance: [{ date: "2024-01-15", rewards: "100.00" }] } },
+      
+      { name: 'party_details', description: 'Get details for a party (wallet/account)', status: 'stable', category: 'Parties', params: [{ name: 'party_id', type: 'string', required: true, description: 'The party ID' }], exampleResponse: { party_id: "PAR::example::1234", balance: "1500.00", ans_names: ["alice.cns"], created_at: "2024-01-01T00:00:00Z" } },
+      { name: 'party_counterparties', description: 'Get counterparties for a party', status: 'stable', category: 'Parties', params: [{ name: 'party_id', type: 'string', required: true, description: 'The party ID' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { counterparties: [{ party_id: "PAR::other::5678", transaction_count: 12 }] } },
+      { name: 'party_balance_changes', description: 'Get balance changes for a party', status: 'experimental', category: 'Parties', params: [{ name: 'party_id', type: 'string', required: true, description: 'The party ID' }, { name: 'cursor', type: 'string', required: false, description: 'Pagination cursor' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { changes: [{ timestamp: "2024-01-15T10:00:00Z", amount: "+100.00" }], next_cursor: "abc123" } },
+      { name: 'party_interactions', description: 'Get interactions for a party', status: 'experimental', category: 'Parties', params: [{ name: 'party_id', type: 'string', required: true, description: 'The party ID' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { interactions: [] } },
+      
+      { name: 'token_transfers_list', description: 'List recent token transfers', status: 'stable', category: 'Token Transfers', params: [{ name: 'cursor', type: 'string', required: false, description: 'Pagination cursor' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { transfers: [{ event_id: "EVT::123", sender: "PAR::a", receiver: "PAR::b", amount: "500.00" }], next_cursor: "xyz" } },
+      { name: 'token_transfer_details', description: 'Get details for a specific transfer by event ID', status: 'stable', category: 'Token Transfers', params: [{ name: 'event_id', type: 'string', required: true, description: 'The transfer event ID' }], exampleResponse: { event_id: "EVT::123", sender: "PAR::a", receiver: "PAR::b", amount: "500.00", timestamp: "2024-01-15T12:00:00Z" } },
+      { name: 'token_transfer_instructions', description: 'Get transfer instructions by event ID', status: 'stable', category: 'Token Transfers', params: [{ name: 'event_id', type: 'string', required: true, description: 'The transfer event ID' }], exampleResponse: { instructions: [{ type: "transfer", amount: "500.00" }] } },
+      { name: 'token_transfers_by_party', description: 'Get transfers for a party', status: 'experimental', category: 'Token Transfers', params: [{ name: 'party_id', type: 'string', required: true, description: 'The party ID' }, { name: 'cursor', type: 'string', required: false, description: 'Pagination cursor' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { transfers: [], next_cursor: null } },
+      
+      { name: 'explore_stats', description: 'Get Canton Network explorer statistics', status: 'stable', category: 'Explore', params: [], exampleResponse: { cc_price: 0.1514, market_cap: 5690000000, total_supply: "37.55B CC", validators: 779, active_parties: 258030 } },
+      { name: 'explore_prices', description: 'Get current token prices', status: 'stable', category: 'Explore', params: [], exampleResponse: { cc_usd: 0.1514, change_24h: -0.312, governance_price: 0.151, external_price: 0.152 } },
+      { name: 'explore_prices_proxy', description: 'Get token prices via proxy', status: 'stable', category: 'Explore', params: [], exampleResponse: { price: 0.1514, source: "coingecko" } },
+      { name: 'explore_supply_stats', description: 'Get supply statistics over a date range', status: 'stable', category: 'Explore', params: [{ name: 'start', type: 'string', required: true, description: 'Start date (YYYY-MM-DD)' }, { name: 'end', type: 'string', required: true, description: 'End date (YYYY-MM-DD)' }], exampleResponse: { data: [{ date: "2024-01-15", supply: "37.55B" }] } },
+      { name: 'explore_transfer_stat_per_day', description: 'Get daily transfer statistics', status: 'stable', category: 'Explore', params: [], exampleResponse: { stats: [{ date: "2024-01-15", count: 15000, volume: "1.2M CC" }] } },
+      
+      { name: 'offers_search', description: 'Search offers on the network', status: 'stable', category: 'Offers', params: [{ name: 'party_id', type: 'string', required: false, description: 'Filter by party ID' }, { name: 'status', type: 'string', required: false, description: 'Filter by status' }, { name: 'cursor', type: 'string', required: false, description: 'Pagination cursor' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { offers: [], total: 0 } },
+      { name: 'offers_stat', description: 'Get offer statistics', status: 'stable', category: 'Offers', params: [], exampleResponse: { total_offers: 150, active: 23, completed: 127 } },
+      
+      { name: 'featured_apps_list', description: 'List featured apps on Canton Network', status: 'stable', category: 'Featured Apps', params: [{ name: 'offset', type: 'number', required: false, description: 'Pagination offset' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { apps: [{ name: "Canton App", description: "A featured app", url: "https://example.com" }] } },
+      { name: 'featured_apps_top5', description: 'Get top 5 featured apps', status: 'experimental', category: 'Featured Apps', params: [], exampleResponse: { apps: [] } },
+      
+      { name: 'rewards_leaderboard_top', description: 'Get top rewards leaderboard', status: 'stable', category: 'Rewards', params: [{ name: 'limit', type: 'number', required: false, description: 'Number of results' }, { name: 'leader_type', type: 'string', required: false, description: 'Type of leader' }], exampleResponse: { leaders: [{ rank: 1, party_id: "PAR::top", rewards: "50000.00" }] } },
+      { name: 'rewards_leaderboard_stat', description: 'Get rewards leaderboard statistics', status: 'stable', category: 'Rewards', params: [], exampleResponse: { total_distributed: "37.59B CC", participants: 25000 } },
+      
+      { name: 'general_search', description: 'Universal search across the Canton Network', status: 'stable', category: 'General Search', params: [{ name: 'arg', type: 'string', required: true, description: 'Search query' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { results: [{ type: "party", id: "PAR::found", name: "alice.cns" }] } },
+      
+      { name: 'updates_list', description: 'List network updates', status: 'experimental', category: 'Updates', params: [{ name: 'cursor', type: 'string', required: false, description: 'Pagination cursor' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }, { name: 'start_datetime', type: 'string', required: false, description: 'Start datetime' }, { name: 'end_datetime', type: 'string', required: false, description: 'End datetime' }], exampleResponse: { updates: [], next_cursor: null } },
+      { name: 'updates_by_party', description: 'Get updates for a party', status: 'experimental', category: 'Updates', params: [{ name: 'party_id', type: 'string', required: true, description: 'The party ID' }, { name: 'cursor', type: 'string', required: false, description: 'Pagination cursor' }, { name: 'limit', type: 'number', required: false, description: 'Number of results' }], exampleResponse: { updates: [], next_cursor: null } }
+    ];
+
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast visible ' + type;
+      setTimeout(() => toast.className = 'toast', 2500);
+    }
+
+    function groupByCategory(tools) {
+      return tools.reduce((acc, tool) => {
+        if (!acc[tool.category]) acc[tool.category] = [];
+        acc[tool.category].push(tool);
+        return acc;
+      }, {});
+    }
+
+    function renderSidebar(tools) {
+      const grouped = groupByCategory(tools);
+      const nav = document.getElementById('sidebarNav');
+      nav.innerHTML = '';
+      
+      Object.entries(grouped).forEach(([category, categoryTools]) => {
+        const section = document.createElement('div');
+        section.innerHTML = `<div class="nav-section">${category}</div>`;
+        
+        categoryTools.forEach(tool => {
+          const link = document.createElement('a');
+          link.href = `#${tool.name}`;
+          link.className = 'nav-item';
+          const shortName = tool.name.split('_').slice(-2).join(' ');
+          link.innerHTML = `<span class="nav-badge">TOOL</span><span>${shortName}</span>`;
+          section.appendChild(link);
+        });
+        
+        nav.appendChild(section);
+      });
+    }
+
+    function highlightJSON(obj) {
+      return JSON.stringify(obj, null, 2)
+        .replace(/"([^"]+)":/g, '<span class="code-string">"$1"</span>:')
+        .replace(/: "([^"]+)"/g, ': <span class="code-url">"$1"</span>')
+        .replace(/: (\d+\.?\d*)/g, ': <span class="code-number">$1</span>')
+        .replace(/: (true|false|null)/g, ': <span class="code-keyword">$1</span>');
+    }
+
+    function generateMCPCall(tool, values = {}) {
+      const args = {};
+      tool.params.forEach(p => {
+        if (values[p.name] !== undefined && values[p.name] !== '') {
+          args[p.name] = p.type === 'number' ? Number(values[p.name]) : values[p.name];
+        } else if (p.required) {
+          // Default examples for required fields
+          if (p.type === 'string') {
+            args[p.name] = p.name.includes('party') ? 'PAR::example::1234' : 
+                           p.name.includes('ans') || p.name === 'name' ? 'user.cns' : 'example';
+          } else {
+            args[p.name] = 10;
+          }
+        }
+      });
+      
+      return {
+        tool: tool.name,
+        ...(Object.keys(args).length > 0 && { arguments: args })
+      };
+    }
+
+    function updateCodePreview(toolName) {
+      const tool = TOOLS.find(t => t.name === toolName);
+      if (!tool) return;
+      
+      const card = document.getElementById(toolName);
+      const values = {};
+      
+      card.querySelectorAll('.param-input input').forEach(input => {
+        const paramName = input.dataset.param;
+        if (input.value) values[paramName] = input.value;
+      });
+      
+      const mcpCall = generateMCPCall(tool, values);
+      const codeEl = card.querySelector('.code-content pre');
+      codeEl.innerHTML = highlightJSON(mcpCall);
+    }
+
+    function copyToClipboard(toolName) {
+      const tool = TOOLS.find(t => t.name === toolName);
+      const card = document.getElementById(toolName);
+      const values = {};
+      
+      card.querySelectorAll('.param-input input').forEach(input => {
+        const paramName = input.dataset.param;
+        if (input.value) values[paramName] = input.value;
+      });
+      
+      const mcpCall = generateMCPCall(tool, values);
+      navigator.clipboard.writeText(JSON.stringify(mcpCall, null, 2));
+      showToast('✓ Copied to clipboard!');
+    }
+
+    function toggleResponse(toolName) {
+      const card = document.getElementById(toolName);
+      const responseBody = card.querySelector('.response-body');
+      responseBody.classList.toggle('visible');
+    }
+
+    function renderToolCard(tool) {
+      const mcpCall = generateMCPCall(tool);
+      
+      return `
+        <div class="tool-card" id="${tool.name}">
+          <div class="tool-header">
+            <span class="tool-method">TOOL</span>
+            <span class="tool-endpoint">${tool.name}</span>
+            <span class="tool-status ${tool.status}">${tool.status}</span>
+          </div>
+          <div class="tool-body">
+            <div class="tool-details">
+              <h3 class="tool-name">${tool.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</h3>
+              <p class="tool-desc">${tool.description}</p>
+              
+              <h4 class="section-title">Parameters</h4>
+              ${tool.params.length > 0 ? `
+                <div class="params-list">
+                  ${tool.params.map(p => `
+                    <div class="param-row">
+                      <div class="param-info">
+                        <div class="param-name-row">
+                          <span class="param-name">${p.name}</span>
+                          <span class="param-type">${p.type}</span>
+                          ${p.required ? '<span class="param-required">required</span>' : ''}
+                        </div>
+                        <div class="param-desc">${p.description}</div>
+                      </div>
+                      <div class="param-input">
+                        <input type="text" 
+                               placeholder="${p.type === 'number' ? '0' : p.name.includes('party') ? 'PAR::...' : 'value'}"
+                               data-param="${p.name}"
+                               data-tool="${tool.name}"
+                               oninput="updateCodePreview('${tool.name}')" />
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : '<div class="no-params">No parameters required</div>'}
+            </div>
+            <div class="tool-code">
+              <div class="code-header">
+                <span class="code-title">MCP Request</span>
+                <div class="code-actions">
+                  <button class="copy-btn" onclick="copyToClipboard('${tool.name}')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div class="code-block">
+                <div class="code-content">
+                  <pre>${highlightJSON(mcpCall)}</pre>
+                </div>
+              </div>
+              <div class="response-section">
+                <div class="response-header">
+                  <span class="response-title">RESPONSE</span>
+                  <span class="response-toggle" onclick="toggleResponse('${tool.name}')">Show Example</span>
+                </div>
+                <div class="response-codes">
+                  <span class="response-code active"><span class="dot success"></span> 200</span>
+                  <span class="response-code"><span class="dot error"></span> 400</span>
+                  <span class="response-code"><span class="dot error"></span> 401</span>
+                </div>
+                <div class="response-body">
+                  <pre>${JSON.stringify(tool.exampleResponse, null, 2)}</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTools(tools) {
+      const grouped = groupByCategory(tools);
+      const container = document.getElementById('toolsContainer');
+      container.innerHTML = '';
+      
+      Object.entries(grouped).forEach(([category, categoryTools]) => {
+        const section = document.createElement('section');
+        section.innerHTML = `
+          <div class="category-header">
+            <h2>${category} <span class="category-count">(${categoryTools.length})</span></h2>
+          </div>
+          ${categoryTools.map(renderToolCard).join('')}
+        `;
+        container.appendChild(section);
+      });
+    }
+
+    // Filtering
+    let currentFilter = 'all';
+    let searchTerm = '';
+
+    function applyFilters() {
+      let filtered = TOOLS;
+      
+      if (currentFilter !== 'all') {
+        filtered = filtered.filter(t => t.status === currentFilter);
+      }
+      
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        filtered = filtered.filter(t => 
+          t.name.toLowerCase().includes(term) || 
+          t.description.toLowerCase().includes(term) ||
+          t.category.toLowerCase().includes(term)
+        );
+      }
+      
+      renderSidebar(filtered);
+      renderTools(filtered);
+      
+      document.getElementById('statTotal').textContent = filtered.length;
+      document.getElementById('statStable').textContent = filtered.filter(t => t.status === 'stable').length;
+      document.getElementById('statExperimental').textContent = filtered.filter(t => t.status === 'experimental').length;
+    }
+
+    // Init
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        applyFilters();
+      });
+    });
+
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      searchTerm = e.target.value;
+      applyFilters();
+    });
+
+    // Keyboard shortcut
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        document.getElementById('searchInput').focus();
+      }
+    });
+
+    renderSidebar(TOOLS);
+    renderTools(TOOLS);
+  </script>
+</body>
+</html>

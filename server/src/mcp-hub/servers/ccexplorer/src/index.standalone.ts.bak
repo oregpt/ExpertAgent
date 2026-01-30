@@ -1,0 +1,148 @@
+#!/usr/bin/env node
+/**
+ * CC Explorer MCP Server
+ * Provides tools for interacting with the Canton Network via pro.ccexplorer.io API
+ */
+
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import { CCExplorerClient } from './api-client.js';
+import { tools } from './tools.js';
+
+const API_KEY = process.env.CCEXPLORER_API_KEY;
+
+if (!API_KEY) {
+  console.error('Error: CCEXPLORER_API_KEY environment variable is required');
+  process.exit(1);
+}
+
+const client = new CCExplorerClient(API_KEY);
+
+const server = new Server(
+  {
+    name: 'ccexplorer-mcp-server',
+    version: '1.0.0',
+  },
+  {
+    capabilities: {
+      tools: {},
+      resources: {},
+    },
+  }
+);
+
+// List available tools
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  return {
+    tools: tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: zodToJsonSchema(tool.inputSchema as any),
+    })),
+  };
+});
+
+// Handle tool calls
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const toolName = request.params.name;
+  const tool = tools.find((t) => t.name === toolName);
+
+  if (!tool) {
+    throw new Error(`Unknown tool: ${toolName}`);
+  }
+
+  try {
+    const args = tool.inputSchema.parse(request.params.arguments || {});
+    const result = await tool.handler(client, args as any);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(result, null, 2),
+        },
+      ],
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Error: ${message}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+});
+
+// List resources
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  return {
+    resources: [
+      {
+        uri: 'ccexplorer://api-info',
+        name: 'CC Explorer API Information',
+        description: 'Overview of available endpoints and their status',
+        mimeType: 'text/plain',
+      },
+    ],
+  };
+});
+
+// Read resources
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  if (request.params.uri === 'ccexplorer://api-info') {
+    return {
+      contents: [
+        {
+          uri: 'ccexplorer://api-info',
+          mimeType: 'text/plain',
+          text: `CC Explorer API (pro.ccexplorer.io)
+Version: 2.9.0
+
+Available Tools (14 total):
+- consensus_get: Get latest consensus block and validator set
+- contract_get: Get contract details by ID
+- contract_updates_list: List updates for a contract
+- party_updates_list: List updates for a party
+- update_get: Get specific update by ID
+- updates_list: List ledger updates
+- round_current: Get current round number
+- governance_get: Get governance vote by tracking CID
+- governance_list: List all governance votes
+- overview_get: Network overview (validators, supply, etc.)
+- party_get: Get party details by ID
+- search: Search for parties, updates, entities
+- super_validators_list: List super validators
+- validators_list: List active validator licenses
+
+Authentication: x-api-key header
+Base URL: https://pro.ccexplorer.io/api`,
+        },
+      ],
+    };
+  }
+
+  throw new Error(`Unknown resource: ${request.params.uri}`);
+});
+
+// Start the server
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error('CC Explorer MCP Server running on stdio');
+}
+
+main().catch((error) => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});

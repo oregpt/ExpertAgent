@@ -1,0 +1,63 @@
+# =============================================================================
+# Agent-in-a-Box - Docker Compose for Local Development
+# =============================================================================
+# Usage:
+#   docker-compose up --build     # Build and start
+#   docker-compose up -d          # Start in background
+#   docker-compose logs -f        # View logs
+#   docker-compose down           # Stop and remove
+
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # Agent-in-a-Box Server (Backend + Frontend)
+  # ---------------------------------------------------------------------------
+  agentinabox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATABASE_URL=${DATABASE_URL}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-claude-sonnet-4-20250514}
+    volumes:
+      # Persist uploaded files
+      - agentinabox_uploads:/app/uploads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Optional: Local PostgreSQL (comment out if using external DB like Neon)
+  # ---------------------------------------------------------------------------
+  # postgres:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: agentinabox
+  #     POSTGRES_PASSWORD: agentinabox
+  #     POSTGRES_DB: agentinabox
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U agentinabox"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  agentinabox_uploads:
+  # postgres_data:

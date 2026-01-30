@@ -1,0 +1,55 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+server/dist/
+web/dist/
+coverage/
+
+# Env (keep .env.example)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Internal files (not for customer distribution)
+CLAUDE.md
+ASSESSMENT.md
+LICENSE_KEY_GENERATION.md
+development_log.md
+docs/DEVELOPMENT_LOG.md
+docs/ORDER_FORM_TEMPLATE.md
+
+# License generation scripts (handled by admin platform)
+scripts/generate-license.ts
+
+# IDE/editor
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Claude Code temp directories
+tmpclaude-*-cwd
+**/tmpclaude-*-cwd
+tmpclaude-*
+
+# Logs
+*.log
+logs/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Uploads (customer-specific data)
+server/uploads/
+!server/uploads/.gitkeep
+
+# Internal specifications
+GITLAB_SYNC_SPEC.md
