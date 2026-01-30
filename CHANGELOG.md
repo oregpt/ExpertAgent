@@ -1,5 +1,101 @@
 # Agent-in-a-Box v2 Changelog
 
+## 2.0.0-alpha.8 (2026-01-31)
+
+### Phase 6: Security & Hardening ✅
+
+Enterprise-grade security layer across all API routes — authentication, validation, rate limiting, and operational hardening.
+
+#### 6.1: Authentication Middleware
+- Created `server/src/middleware/auth.ts` — `requireAuth` middleware
+- Checks `X-API-Key` header or `api_key` query parameter against `API_KEY` env var
+- If `API_KEY` not set → auth disabled (dev mode) with structured warning log
+- Applied to: admin routes, memory routes, proactive routes, channel CRUD routes, KB routes, RAG routes
+- NOT applied to: chat routes (widget uses these), channel webhook endpoints (they verify signatures)
+
+#### 6.2: Input Validation
+- Created `server/src/middleware/validation.ts` — Zod-based request validation
+- `validate(schema)` middleware factory — returns 400 with structured error details on failure
+- Schemas:
+  - `chatMessageSchema` — message: string, max 10,000 chars
+  - `documentUpdateSchema` — content: string, max 500,000 chars
+  - `memorySearchSchema` — query: string, max 1,000 chars; topK: 1–20
+  - `channelCreateSchema` — channel_type enum (slack/teams/webhook), config object
+  - `cronJobCreateSchema` — schedule, taskText (max 5,000), optional model
+  - `heartbeatConfigSchema` — enabled, intervalMinutes (1–1440), quiet hours, timezone
+- Applied to: PUT documents, POST memory/search, PUT heartbeat, POST cron, POST channel
+
+#### 6.3: Rate Limiting
+- Added `express-rate-limit` dependency (the ONE new dependency)
+- Created `server/src/middleware/rateLimit.ts`:
+  - `chatLimiter` — 60 requests/min/IP for chat endpoints
+  - `apiLimiter` — 120 requests/min/IP for admin endpoints
+- Standard RateLimit headers in responses; legacy headers disabled
+- Applied: chatLimiter → `/api/chat/*`, apiLimiter → all other `/api/*` routes
+
+#### 6.4: CORS Configuration
+- Configurable via `CORS_ORIGINS` env var (comma-separated origins)
+- Defaults to `*` (all origins) when not set (development)
+- Allowed methods: GET, POST, PUT, DELETE, OPTIONS
+- Allowed headers: Content-Type, Authorization, X-API-Key
+
+#### 6.5: Security Headers
+- No helmet dependency — custom middleware in app.ts:
+  - `X-Content-Type-Options: nosniff`
+  - `X-Frame-Options: DENY`
+  - `X-XSS-Protection: 1; mode=block`
+  - `Strict-Transport-Security` (production only)
+  - `X-Powered-By` removed via `app.disable('x-powered-by')`
+
+#### 6.6: File Upload Security
+- Updated `kbRoutes.ts` multer config:
+  - File size limit: 10MB max
+  - Allowed extensions: `.txt`, `.pdf`, `.docx`, `.md`, `.csv`
+  - Validates BOTH file extension AND MIME type
+  - Custom `wrapMulter()` error handler returns clean 400 responses
+  - Rejects invalid files before processing
+
+#### 6.7: Health Check
+- `GET /health` endpoint (no auth required)
+- Returns: `{ status, version, uptime, timestamp, db }`
+- Checks DB connection with `SELECT 1` — returns `status: 'degraded'` with 503 if DB is down
+- Version: `2.0.0-alpha.1`
+
+#### 6.8: Structured Logging
+- Created `server/src/utils/logger.ts` — JSON structured logger wrapping console
+- `logger.info()`, `logger.warn()`, `logger.error()` — all output `{ level, message, ...meta, timestamp }`
+- Replaced key operational `console.log` calls in:
+  - `proactiveEngine.ts` — engine start/stop, poll errors, heartbeat/cron execution errors
+  - `channelRouter.ts` — adapter registration, channel initialization, message send/receive, errors
+  - `index.ts` — server start, MCP Hub init, capabilities, channels, shutdown
+- NO new dependencies — just wraps console methods
+
+#### 6.9: Global Error Handler
+- Last middleware in app.ts Express chain
+- Logs: error message, stack (dev only), request path, HTTP method
+- Never exposes stack traces in production (`NODE_ENV=production`)
+- Returns `{ error: 'Internal server error' }` with 500 status
+
+#### 6.10: Memory Isolation (Verified)
+- All `documentService.ts` functions (`getDocument`, `upsertDocument`, `listDocuments`, `deleteDocument`, `searchMemory`) filter by `agentId`
+- Memory routes take `agentId` from URL path parameter (`:id`)
+- No cross-agent document access possible ✅
+
+#### 6.11: Environment Configuration
+- Added to `server/.env.example`:
+  - `API_KEY` — admin API key (unset = dev mode)
+  - `CORS_ORIGINS` — allowed CORS origins
+
+### Design Principles
+- **ONE new dependency** — only `express-rate-limit` added; security headers and logging use zero deps
+- **Dev-friendly** — auth disabled when `API_KEY` not set; CORS defaults to `*`; structured logging still readable
+- **Defense in depth** — auth + validation + rate limiting + CORS + security headers + file type checking
+- **Production-safe** — no stack traces leaked, HSTS enabled, strict CORS in production
+- **Clean TypeScript build** — zero compilation errors
+- **v1 compatibility** — chat routes remain public for widget; webhook endpoints keep their own auth
+
+---
+
 ## 2.0.0-alpha.7 (2026-01-31)
 
 ### Phase 7: Licensing v2 & Modularity ✅
