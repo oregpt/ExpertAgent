@@ -23,6 +23,7 @@
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
     "express": "^5.2.1",
+    "express-rate-limit": "^7.5.0",
     "jsonwebtoken": "^9.0.3",
     "mammoth": "^1.11.0",
     "multer": "^2.0.2",

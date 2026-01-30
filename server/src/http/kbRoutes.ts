@@ -70,23 +70,22 @@ const upload = multer({
 });
 
 /**
- * Multer error handler middleware.
- * Converts multer errors to clean 400 responses.
+ * Wrap a multer middleware to catch errors and return clean 400 responses.
  */
-function handleMulterError(err: any, _req: Request, res: Response, next: NextFunction): void {
-  if (err instanceof multer.MulterError) {
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
-      return;
-    }
-    res.status(400).json({ error: `Upload error: ${err.message}` });
-    return;
-  }
-  if (err && err.message) {
-    res.status(400).json({ error: err.message });
-    return;
-  }
-  next(err);
+function wrapMulter(multerMiddleware: any) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    multerMiddleware(req, res, (err: any) => {
+      if (err) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+          return;
+        }
+        res.status(400).json({ error: err.message || 'Upload error' });
+        return;
+      }
+      next();
+    });
+  };
 }
 
 kbRouter.post('/text', async (req, res) => {
@@ -127,7 +126,7 @@ kbRouter.delete('/:documentId', async (req, res) => {
 });
 
 // Legacy single file upload - kept for backward compatibility
-kbRouter.post('/files', upload.single('file'), handleMulterError, async (req, res) => {
+kbRouter.post('/files', wrapMulter(upload.single('file')), async (req: Request, res: Response) => {
   const typedReq = req as FileUploadRequest;
   try {
     if (!typedReq.file) return res.status(400).json({ error: 'file is required' });
@@ -163,7 +162,7 @@ kbRouter.post('/files', upload.single('file'), handleMulterError, async (req, re
 });
 
 // Batch file upload - supports up to 20 files at once
-kbRouter.post('/files/batch', upload.array('files', 20), handleMulterError, async (req, res) => {
+kbRouter.post('/files/batch', wrapMulter(upload.array('files', 20)), async (req: Request, res: Response) => {
   const typedReq = req as FileUploadRequest;
   try {
     const files = typedReq.files;

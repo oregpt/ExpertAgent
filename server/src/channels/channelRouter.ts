@@ -163,7 +163,7 @@ class ChannelRouter {
         .where(and(eq(agentChannels.agentId, agentId), eq(agentChannels.enabled, true))) as any[];
 
       if (rows.length === 0) {
-        console.log(`[channels] No enabled channels for agent ${agentId}`);
+        logger.info('No enabled channels for agent', { agentId });
         return;
       }
 
@@ -178,14 +178,15 @@ class ChannelRouter {
             await this.sendMessage(channelRow.channelType, targetId, message);
           }
         } catch (err) {
-          console.error(
-            `[channels] Broadcast failed for channel ${channelRow.id} (${channelRow.channelType}):`,
-            err
-          );
+          logger.error('Channel broadcast failed', {
+            channelId: channelRow.id,
+            channelType: channelRow.channelType,
+            error: (err as Error).message,
+          });
         }
       }
     } catch (err) {
-      console.error(`[channels] sendToAllChannels error for agent ${agentId}:`, err);
+      logger.error('sendToAllChannels error', { agentId, error: (err as Error).message });
     }
   }
 
@@ -218,20 +219,22 @@ class ChannelRouter {
   async handleInbound(channelType: string, req: any, res: any): Promise<InboundMessage | null> {
     const adapter = this.adapters.get(channelType);
     if (!adapter || !adapter.handleInbound) {
-      console.warn(`[channels] No inbound handler for type "${channelType}"`);
+      logger.warn('No inbound handler for channel type', { channelType });
       return null;
     }
 
     try {
       const inbound = await adapter.handleInbound(req, res);
       if (inbound) {
-        console.log(
-          `[channels] Inbound from ${channelType}: sender=${inbound.senderId}, len=${inbound.text.length}`
-        );
+        logger.info('Inbound message received', {
+          channelType,
+          senderId: inbound.senderId,
+          textLength: inbound.text.length,
+        });
       }
       return inbound;
     } catch (err) {
-      console.error(`[channels] Inbound handling error (${channelType}):`, err);
+      logger.error('Inbound handling error', { channelType, error: (err as Error).message });
       return null;
     }
   }
@@ -264,13 +267,18 @@ class ChannelRouter {
       }
 
       if (!agentId) {
-        console.warn(`[channels] Cannot find agent for channel ${inbound.channelId} (${inbound.channelType})`);
+        logger.warn('Cannot find agent for channel', {
+          channelId: inbound.channelId,
+          channelType: inbound.channelType,
+        });
         return;
       }
 
-      console.log(
-        `[channels] Processing inbound for agent ${agentId}: "${inbound.text.slice(0, 80)}..."`
-      );
+      logger.info('Processing inbound message', {
+        agentId,
+        channelType: inbound.channelType,
+        textPreview: inbound.text.slice(0, 80),
+      });
 
       // Create/reuse conversation for this channel + sender
       const externalUserId = `${inbound.channelType}:${inbound.senderId}`;
@@ -293,11 +301,13 @@ class ChannelRouter {
         await this.sendMessage(inbound.channelType, replyTarget, replyMessage);
       }
 
-      console.log(
-        `[channels] Reply sent to ${inbound.channelType} for agent ${agentId}: len=${result.reply.length}`
-      );
+      logger.info('Channel reply sent', {
+        channelType: inbound.channelType,
+        agentId,
+        replyLength: result.reply.length,
+      });
     } catch (err) {
-      console.error('[channels] processInbound error:', err);
+      logger.error('processInbound error', { error: (err as Error).message });
     }
   }
 
@@ -333,14 +343,14 @@ class ChannelRouter {
       if (adapter.shutdown) {
         try {
           await adapter.shutdown();
-          console.log(`[channels] Adapter ${name} shut down`);
+          logger.info('Channel adapter shut down', { adapter: name });
         } catch (err) {
-          console.error(`[channels] Error shutting down adapter ${name}:`, err);
+          logger.error('Error shutting down adapter', { adapter: name, error: (err as Error).message });
         }
       }
     }
     this.initializedChannels.clear();
-    console.log('[channels] Router shut down');
+    logger.info('Channel router shut down');
   }
 }
 

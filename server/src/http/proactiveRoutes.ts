@@ -100,7 +100,7 @@ proactiveRouter.get('/agents/:id/heartbeat', async (req, res) => {
  */
 proactiveRouter.put('/agents/:id/heartbeat', validate(heartbeatConfigSchema), async (req, res) => {
   try {
-    const agentId = req.params.id;
+    const agentId = req.params.id as string;
     const { enabled, intervalMinutes, checklist, quietHoursStart, quietHoursEnd, timezone } = req.body;
 
     // Basic validation
@@ -175,7 +175,7 @@ proactiveRouter.get('/agents/:id/cron', async (req, res) => {
  */
 proactiveRouter.post('/agents/:id/cron', validate(cronJobCreateSchema), async (req, res) => {
   try {
-    const agentId = req.params.id;
+    const agentId = req.params.id as string;
     const { schedule, taskText, model, enabled } = req.body;
 
     if (!schedule || typeof schedule !== 'string') {

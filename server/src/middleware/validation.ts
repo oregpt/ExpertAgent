@@ -61,10 +61,12 @@ export const memorySearchSchema = z.object({
 /** Channel create body */
 export const channelCreateSchema = z.object({
   channel_type: z.enum(['slack', 'teams', 'webhook'], {
-    errorMap: () => ({ message: "channel_type must be 'slack', 'teams', or 'webhook'" }),
+    error: "channel_type must be 'slack', 'teams', or 'webhook'",
   }),
   channel_name: z.string().optional(),
-  config: z.record(z.unknown(), { required_error: 'config object is required' }),
+  config: z.record(z.string(), z.unknown()).refine((val) => val !== null && typeof val === 'object', {
+    message: 'config object is required',
+  }),
 });
 
 /** Cron job create body */

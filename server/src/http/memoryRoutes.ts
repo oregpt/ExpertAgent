@@ -165,7 +165,7 @@ memoryRouter.delete('/agents/:id/documents/:key(*)', async (req, res) => {
  */
 memoryRouter.post('/agents/:id/memory/search', validate(memorySearchSchema), async (req, res) => {
   try {
-    const agentId = req.params.id;
+    const agentId = req.params.id as string;
     const { query, topK } = req.body as { query: string; topK?: number };
 
     if (!query || typeof query !== 'string') {

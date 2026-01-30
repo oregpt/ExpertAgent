@@ -6,6 +6,7 @@ import { initializeDatabase } from './db/init';
 import { initializeLicensing, getFeatures } from './licensing';
 import { proactiveEngine } from './proactive';
 import { channelRouter, SlackAdapter, TeamsAdapter, WebhookAdapter } from './channels';
+import { logger } from './utils/logger';
 
 const config = loadConfig();
 const app = createHttpApp();
@@ -15,7 +16,7 @@ async function initializeMCPHub() {
   const features = getFeatures();
 
   if (!features.mcpHub) {
-    console.log('[server] MCP Hub disabled (not licensed)');
+    logger.info('MCP Hub disabled (not licensed)');
     return;
   }
 
@@ -24,9 +25,9 @@ async function initializeMCPHub() {
     const manager = getMCPServerManager();
     await manager.initialize();
 
-    console.log('[server] MCP Hub initialized successfully');
+    logger.info('MCP Hub initialized successfully');
   } catch (error) {
-    console.error('[server] Failed to initialize MCP Hub:', error);
+    logger.error('Failed to initialize MCP Hub', { error: (error as Error).message });
   }
 }
 
@@ -34,16 +35,16 @@ async function initializeCapabilities() {
   const features = getFeatures();
 
   if (!features.mcpHub) {
-    console.log('[server] Capabilities seeding skipped (MCP Hub not licensed)');
+    logger.info('Capabilities seeding skipped (MCP Hub not licensed)');
     return;
   }
 
   try {
     // Seed default capabilities
     await capabilityService.seedDefaultCapabilities();
-    console.log('[server] Default capabilities seeded');
+    logger.info('Default capabilities seeded');
   } catch (error) {
-    console.error('[server] Failed to seed capabilities:', error);
+    logger.error('Failed to seed capabilities', { error: (error as Error).message });
   }
 }
 
@@ -52,7 +53,7 @@ async function initializeChannels() {
   const features = getFeatures();
 
   if (!features.multiChannel) {
-    console.log('[server] Multi-channel disabled (not licensed)');
+    logger.info('Multi-channel disabled (not licensed)');
     return;
   }
 
@@ -65,15 +66,15 @@ async function initializeChannels() {
     // Load channel configs from DB and initialize each adapter
     await channelRouter.initializeAll();
 
-    console.log('[server] Multi-channel system initialized');
+    logger.info('Multi-channel system initialized');
   } catch (error) {
-    console.error('[server] Failed to initialize channels:', error);
+    logger.error('Failed to initialize channels', { error: (error as Error).message });
   }
 }
 
 // Start server
 app.listen(config.port, async () => {
-  console.log(`Agent-in-a-Box server listening on port ${config.port}`);
+  logger.info('Agent-in-a-Box server started', { port: config.port });
 
   // Initialize licensing FIRST (before anything else)
   initializeLicensing();
@@ -97,7 +98,7 @@ app.listen(config.port, async () => {
 // ============================================================================
 
 async function shutdown(signal: string) {
-  console.log(`\n[server] Received ${signal} — shutting down...`);
+  logger.info('Shutdown signal received', { signal });
   proactiveEngine.stop();
   await channelRouter.shutdown().catch(() => {});
   process.exit(0);
