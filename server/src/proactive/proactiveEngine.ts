@@ -14,6 +14,7 @@ import { getFeatures } from '../licensing/features';
 import { getAllEnabledConfigs, isDue, executeHeartbeat } from './heartbeatService';
 import { getDueJobs, executeJob } from './cronService';
 import { channelRouter } from '../channels/channelRouter';
+import { logger } from '../utils/logger';
 
 // ============================================================================
 // Singleton
@@ -33,17 +34,17 @@ class ProactiveEngine {
   start(): void {
     const features = getFeatures();
     if (!features.proactive) {
-      console.log('[proactive] Engine disabled (proactive feature flag is off)');
+      logger.info('Proactive engine disabled (feature flag off)');
       return;
     }
 
     if (this.running) {
-      console.warn('[proactive] Engine already running');
+      logger.warn('Proactive engine already running');
       return;
     }
 
     this.running = true;
-    console.log('[proactive] Engine started — polling every 60s');
+    logger.info('Proactive engine started', { pollIntervalMs: POLL_INTERVAL_MS });
 
     // Run first poll shortly after startup (give DB time to settle)
     setTimeout(() => this.poll(), 5000);
@@ -61,7 +62,7 @@ class ProactiveEngine {
       this.intervalHandle = null;
     }
     this.running = false;
-    console.log('[proactive] Engine stopped');
+    logger.info('Proactive engine stopped');
   }
 
   /**
@@ -82,7 +83,7 @@ class ProactiveEngine {
       // 2. Check cron jobs
       await this.checkCronJobs();
     } catch (err) {
-      console.error('[proactive] Poll cycle error:', err);
+      logger.error('Proactive poll cycle error', { error: (err as Error).message });
     } finally {
       this.polling = false;
     }
@@ -98,12 +99,12 @@ class ProactiveEngine {
         if (isDue(config)) {
           // Execute heartbeat asynchronously (don't block other checks)
           executeHeartbeat(config.agentId).catch((err) => {
-            console.error(`[proactive] Heartbeat execution error for agent ${config.agentId}:`, err);
+            logger.error('Heartbeat execution error', { agentId: config.agentId, error: (err as Error).message });
           });
         }
       }
     } catch (err) {
-      console.error('[proactive] Heartbeat check error:', err);
+      logger.error('Heartbeat check error', { error: (err as Error).message });
     }
   }
 
@@ -116,11 +117,11 @@ class ProactiveEngine {
       for (const job of dueJobs) {
         // Execute each job asynchronously (don't block other jobs)
         executeJob(job).catch((err) => {
-          console.error(`[proactive] Cron execution error for job ${job.id}:`, err);
+          logger.error('Cron execution error', { jobId: job.id, error: (err as Error).message });
         });
       }
     } catch (err) {
-      console.error('[proactive] Cron check error:', err);
+      logger.error('Cron check error', { error: (err as Error).message });
     }
   }
 }

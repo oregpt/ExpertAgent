@@ -15,6 +15,7 @@ import { db } from '../db/client';
 import { agentChannels } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { generateReply, startConversation, appendMessage } from '../chat/chatService';
+import { logger } from '../utils/logger';
 
 // ============================================================================
 // Channel Router
@@ -36,7 +37,7 @@ class ChannelRouter {
    */
   registerAdapter(adapter: ChannelAdapter): void {
     this.adapters.set(adapter.name, adapter);
-    console.log(`[channels] Registered adapter: ${adapter.name}`);
+    logger.info('Channel adapter registered', { adapter: adapter.name });
   }
 
   /**
@@ -55,7 +56,7 @@ class ChannelRouter {
    * Called on server startup.
    */
   async initializeAll(): Promise<void> {
-    console.log('[channels] Initializing all channel configs from DB...');
+    logger.info('Initializing all channel configs from DB');
 
     try {
       const rows = await db
@@ -70,16 +71,17 @@ class ChannelRouter {
           await this.initializeChannel(channelRow);
           initialized++;
         } catch (err) {
-          console.error(
-            `[channels] Failed to initialize channel ${channelRow.id} (${channelRow.channelType}):`,
-            err
-          );
+          logger.error('Failed to initialize channel', {
+            channelId: channelRow.id,
+            channelType: channelRow.channelType,
+            error: (err as Error).message,
+          });
         }
       }
 
-      console.log(`[channels] Initialized ${initialized}/${rows.length} channels`);
+      logger.info('Channels initialized', { initialized, total: rows.length });
     } catch (err) {
-      console.error('[channels] Failed to load channels from DB:', err);
+      logger.error('Failed to load channels from DB', { error: (err as Error).message });
     }
   }
 
@@ -103,9 +105,11 @@ class ChannelRouter {
     await adapter.initialize(channelRow.config || {});
     this.initializedChannels.add(key);
 
-    console.log(
-      `[channels] Initialized: ${channelRow.channelType} channel "${channelRow.channelName || channelRow.id}" for agent ${channelRow.agentId}`
-    );
+    logger.info('Channel initialized', {
+      channelType: channelRow.channelType,
+      channelName: channelRow.channelName || String(channelRow.id),
+      agentId: channelRow.agentId,
+    });
   }
 
   // --------------------------------------------------------------------------
@@ -123,7 +127,7 @@ class ChannelRouter {
   async sendMessage(channelType: string, channelId: string, message: ChannelMessage): Promise<void> {
     const adapter = this.adapters.get(channelType);
     if (!adapter) {
-      console.error(`[channels] No adapter for type "${channelType}" — cannot send`);
+      logger.error('No adapter for channel type — cannot send', { channelType });
       return;
     }
 
@@ -135,11 +139,14 @@ class ChannelRouter {
 
     try {
       await adapter.sendMessage(channelId, formattedMessage);
-      console.log(
-        `[channels] Sent to ${channelType}/${channelId}: agent=${message.agentId}, len=${message.text.length}`
-      );
+      logger.info('Channel message sent', {
+        channelType,
+        channelId,
+        agentId: message.agentId,
+        textLength: message.text.length,
+      });
     } catch (err) {
-      console.error(`[channels] Send failed (${channelType}/${channelId}):`, err);
+      logger.error('Channel send failed', { channelType, channelId, error: (err as Error).message });
       throw err;
     }
   }

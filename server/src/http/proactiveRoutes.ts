@@ -22,6 +22,8 @@ import {
 import { db } from '../db/client';
 import { agentTaskRuns } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { requireAuth } from '../middleware/auth';
+import { validate, cronJobCreateSchema, heartbeatConfigSchema } from '../middleware/validation';
 
 export const proactiveRouter = Router();
 
@@ -42,7 +44,8 @@ function requireProactive(_req: any, res: any, next: any): void {
   next();
 }
 
-// Apply feature guard to all routes
+// Apply auth + feature guard to all routes
+proactiveRouter.use(requireAuth);
 proactiveRouter.use(requireProactive);
 
 // ============================================================================
@@ -95,7 +98,7 @@ proactiveRouter.get('/agents/:id/heartbeat', async (req, res) => {
  * Update heartbeat config for an agent
  * Body: { enabled?, intervalMinutes?, checklist?, quietHoursStart?, quietHoursEnd?, timezone? }
  */
-proactiveRouter.put('/agents/:id/heartbeat', async (req, res) => {
+proactiveRouter.put('/agents/:id/heartbeat', validate(heartbeatConfigSchema), async (req, res) => {
   try {
     const agentId = req.params.id;
     const { enabled, intervalMinutes, checklist, quietHoursStart, quietHoursEnd, timezone } = req.body;
@@ -170,7 +173,7 @@ proactiveRouter.get('/agents/:id/cron', async (req, res) => {
  * Create a new cron job
  * Body: { schedule, taskText, model?, enabled? }
  */
-proactiveRouter.post('/agents/:id/cron', async (req, res) => {
+proactiveRouter.post('/agents/:id/cron', validate(cronJobCreateSchema), async (req, res) => {
   try {
     const agentId = req.params.id;
     const { schedule, taskText, model, enabled } = req.body;

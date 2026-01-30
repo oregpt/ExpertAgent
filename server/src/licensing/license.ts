@@ -18,6 +18,68 @@ import { FeatureFlags, BASE_FEATURES } from './features';
  */
 const LICENSE_SECRET = process.env.LICENSE_SECRET || 'agenticledger-default-secret-change-in-production';
 
+// ============================================================================
+// Tier Presets
+// ============================================================================
+
+/**
+ * License tier presets.
+ *
+ * Each tier defines the full set of feature flags for a license level:
+ * - starter: v1 equivalent — widget + RAG + basic MCP tools
+ * - pro:     + soul/memory, deep tools, multi-channel, custom branding
+ * - enterprise: everything unlocked, max scale
+ */
+export type LicenseTier = 'starter' | 'pro' | 'enterprise';
+
+export const TIER_PRESETS: Record<LicenseTier, FeatureFlags> = {
+  starter: {
+    // v1 equivalent — widget + RAG + basic tools
+    multiAgent: false,
+    maxAgents: 1,
+    multimodal: true,
+    mcpHub: true,
+    allowedCapabilities: ['*'],
+    customBranding: false,
+    gitlabKbSync: false,
+    soulMemory: false,
+    deepTools: false,
+    proactive: false,
+    backgroundAgents: false,
+    multiChannel: false,
+  },
+  pro: {
+    // v1 + soul/memory + deep tools + multi-channel + branding
+    multiAgent: true,
+    maxAgents: 5,
+    multimodal: true,
+    mcpHub: true,
+    allowedCapabilities: ['*'],
+    customBranding: true,
+    gitlabKbSync: true,
+    soulMemory: true,
+    deepTools: true,
+    proactive: false,       // not in Pro
+    backgroundAgents: false, // not in Pro
+    multiChannel: true,
+  },
+  enterprise: {
+    // Everything unlocked
+    multiAgent: true,
+    maxAgents: 100,
+    multimodal: true,
+    mcpHub: true,
+    allowedCapabilities: ['*'],
+    customBranding: true,
+    gitlabKbSync: true,
+    soulMemory: true,
+    deepTools: true,
+    proactive: true,
+    backgroundAgents: true,
+    multiChannel: true,
+  },
+};
+
 /**
  * License payload structure (what's encoded in the JWT)
  */
@@ -150,6 +212,49 @@ export function generateLicenseKey(payload: LicensePayload, expiresIn?: string):
     secret,
     options
   );
+}
+
+/**
+ * Generate a license key from a tier preset.
+ * Convenience wrapper around generateLicenseKey.
+ */
+export function generateLicenseForTier(
+  org: string,
+  tier: LicenseTier,
+  options?: { name?: string; expiresIn?: string }
+): string {
+  return generateLicenseKey(
+    {
+      org,
+      name: options?.name || `${org} — ${tier}`,
+      features: { ...TIER_PRESETS[tier] },
+    },
+    options?.expiresIn
+  );
+}
+
+/**
+ * Build a FeatureFlags object from a comma-separated list of flag names.
+ * Starts from BASE_FEATURES and enables each named flag.
+ *
+ * @param flagNames — e.g. ['soulMemory', 'deepTools', 'multiChannel']
+ */
+export function buildCustomFeatures(flagNames: string[]): FeatureFlags {
+  const features: FeatureFlags = { ...BASE_FEATURES };
+
+  for (const flag of flagNames) {
+    const trimmed = flag.trim();
+    if (trimmed in features) {
+      (features as any)[trimmed] = true;
+    }
+  }
+
+  // If multiAgent is enabled but maxAgents is still 1, bump it
+  if (features.multiAgent && features.maxAgents <= 1) {
+    features.maxAgents = 10;
+  }
+
+  return features;
 }
 
 /**

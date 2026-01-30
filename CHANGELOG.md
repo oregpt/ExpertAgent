@@ -1,5 +1,87 @@
 # Agent-in-a-Box v2 Changelog
 
+## 2.0.0-alpha.7 (2026-01-31)
+
+### Phase 7: Licensing v2 & Modularity ✅
+
+Final phase — every capability independently toggleable via license flags, tier presets, and a license generation script.
+
+#### 7.1: Feature Flag Verification
+- Verified all 5 v2 feature flags exist in `server/src/licensing/features.ts`:
+  - `soulMemory: boolean` (Phase 1) — in interface, BASE_FEATURES (false), FULL_FEATURES (true) ✅
+  - `deepTools: boolean` (Phase 2) — in interface, BASE_FEATURES (false), FULL_FEATURES (true) ✅
+  - `proactive: boolean` (Phase 3) — in interface, BASE_FEATURES (false), FULL_FEATURES (true) ✅
+  - `backgroundAgents: boolean` (Phase 3) — in interface, BASE_FEATURES (false), FULL_FEATURES (true) ✅
+  - `multiChannel: boolean` (Phase 4) — in interface, BASE_FEATURES (false), FULL_FEATURES (true) ✅
+- All flags properly typed, documented with JSDoc comments, and included in feature summary logging
+
+#### 7.2: License Tier Presets
+- Added `TIER_PRESETS` to `server/src/licensing/license.ts` with three tiers:
+  - **Starter** — v1 equivalent: widget + RAG + MCP tools, single agent, no v2 features
+  - **Pro** — + soul/memory, deep tools, multi-channel, custom branding, GitLab KB sync, up to 5 agents
+  - **Enterprise** — everything unlocked: proactive engine, background agents, up to 100 agents
+- Exported `LicenseTier` type (`'starter' | 'pro' | 'enterprise'`)
+- Added `generateLicenseForTier()` convenience function
+- Added `buildCustomFeatures()` for comma-separated flag list → FeatureFlags object
+
+#### 7.3: Module Guard Verification
+All modules verified with proper feature flag guards:
+- **Soul & Memory** (`soulMemory`):
+  - `contextBuilder.ts` — falls back to v1 static instructions when off ✅
+  - `memoryRoutes.ts` — `requireSoulMemory` middleware returns 403 on all routes ✅
+  - `adminRoutes.ts` — skips `createDefaultDocuments()` on agent creation when off ✅
+  - `toolExecutor.ts` — memory tools excluded from tool list when off ✅
+  - `chatService.ts` — `appendToDailyLog()` returns early when off ✅
+- **Deep Tools** (`deepTools`):
+  - `toolExecutor.ts` — `web__search`/`web__fetch` excluded from tool list when off ✅
+- **Proactive** (`proactive`):
+  - `proactiveEngine.ts` — `start()` is a no-op, logs "disabled" when off ✅
+  - `proactiveRoutes.ts` — `requireProactive` middleware returns 403 on all routes ✅
+- **Background Agents** (`backgroundAgents`):
+  - `backgroundAgent.ts` — `spawnTask()` throws error when off ✅
+- **Multi-Channel** (`multiChannel`):
+  - `index.ts` — `initializeChannels()` skips all adapter registration when off ✅
+  - `channelRoutes.ts` — CRUD returns 403, webhook endpoints return 404 when off ✅
+
+#### 7.4: Independence Test Documentation
+- Created `server/src/licensing/MODULARITY_TEST.md`:
+  - Per-flag behavior when OFF (services not started, endpoints returning 403/404)
+  - Independence matrix showing flag combinations
+  - License tier comparison table
+  - Step-by-step manual test instructions
+  - Key guarantees: no orphaned dependencies, no startup errors, graceful degradation
+
+#### 7.5: License Generation Script
+- Created `server/scripts/generate-license.ts`:
+  - `--org "Acme Corp" --tier pro` — generate from tier preset
+  - `--org "Acme Corp" --custom soulMemory,deepTools` — generate with specific flags
+  - `--name`, `--expires` (default 1y) options
+  - `--decode <token>` — decode existing token for inspection
+  - Pretty-printed output with feature flag summary
+  - Uses `LICENSE_SECRET` env var (required)
+- Added `generate-license` npm script to server/package.json
+
+#### 7.6: .env.example Update
+- Updated license key section with:
+  - Tier documentation (starter/pro/enterprise descriptions)
+  - Custom flag generation example
+  - `LICENSE_SECRET` variable documentation
+- All v2 feature flags already documented from prior phases ✅
+
+#### 7.7: package.json Cleanup
+- Root: bumped version to `2.0.0-alpha.7`, updated description and keywords
+- Server: renamed to `agentinabox-v2-server`, bumped to `2.0.0-alpha.7`, added author/license, added `generate-license` script
+- All dependencies verified present (jsonwebtoken for JWT, all others from prior phases)
+
+### Design Principles
+- **Every flag independently toggleable** — Any combination of flags starts cleanly
+- **v1 behavior preserved** — All flags off = exact v1 behavior
+- **Guard at entry points only** — Simple `if (!getFeatures().flag) return` pattern, no over-engineering
+- **Tier presets are convenience, not constraints** — Custom flag combos supported too
+- **License keys are JWTs** — Signed, verifiable, with expiration support
+
+---
+
 ## 2.0.0-alpha.6 (2026-01-31)
 
 ### Phase 5: Session Continuity ✅

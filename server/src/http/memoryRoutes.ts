@@ -16,6 +16,8 @@ import {
   deleteDocument,
   searchMemory,
 } from '../memory';
+import { requireAuth } from '../middleware/auth';
+import { validate, documentUpdateSchema, memorySearchSchema } from '../middleware/validation';
 
 export const memoryRouter = Router();
 
@@ -35,7 +37,8 @@ function requireSoulMemory(req: any, res: any, next: any): void {
   next();
 }
 
-// Apply feature guard to all routes
+// Apply auth + feature guard to all routes
+memoryRouter.use(requireAuth);
 memoryRouter.use(requireSoulMemory);
 
 // ============================================================================
@@ -102,7 +105,7 @@ memoryRouter.get('/agents/:id/documents/:key(*)', async (req, res) => {
  * Create or update a document
  * Body: { content: string, docType?: string }
  */
-memoryRouter.put('/agents/:id/documents/:key(*)', async (req, res) => {
+memoryRouter.put('/agents/:id/documents/:key(*)', validate(documentUpdateSchema), async (req, res) => {
   try {
     const agentId = req.params.id as string;
     const docKey = req.params.key as string;
@@ -160,7 +163,7 @@ memoryRouter.delete('/agents/:id/documents/:key(*)', async (req, res) => {
  * Semantic search across agent memory documents
  * Body: { query: string, topK?: number }
  */
-memoryRouter.post('/agents/:id/memory/search', async (req, res) => {
+memoryRouter.post('/agents/:id/memory/search', validate(memorySearchSchema), async (req, res) => {
   try {
     const agentId = req.params.id;
     const { query, topK } = req.body as { query: string; topK?: number };

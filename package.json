@@ -1,12 +1,12 @@
 {
   "name": "agentinabox-v2",
-  "version": "2.0.0-alpha.1",
+  "version": "2.0.0-alpha.7",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["ai", "agent", "enterprise", "multi-tenant"],
+  "keywords": ["ai", "agent", "enterprise", "multi-tenant", "licensing", "modular"],
   "author": "AgenticLedger",
   "license": "PROPRIETARY",
-  "description": "Agent-in-a-Box v2 — Enterprise AI agent platform with soul, memory, proactive behavior, and multi-channel delivery"
+  "description": "Agent-in-a-Box v2 — Enterprise AI agent platform with soul, memory, proactive behavior, and multi-channel delivery. Every capability independently toggleable via license flags."
 }
