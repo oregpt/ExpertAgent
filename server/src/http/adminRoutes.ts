@@ -10,6 +10,7 @@ import { capabilityService } from '../capabilities';
 import { getOrchestrator, getMCPServerManager } from '../mcp-hub';
 import { eq, and, isNull, sql, inArray } from 'drizzle-orm';
 import { getFeatures, canCreateAgent, getLicensingStatus } from '../licensing';
+import { createDefaultDocuments } from '../memory';
 import {
   getGitLabConnection,
   saveGitLabConnection,
@@ -149,6 +150,14 @@ adminRouter.post('/agents', async (req, res) => {
         allowedModels: allowedModels || null,
       })
       .returning()) as any[];
+
+    // v2: Auto-create default soul/memory/context documents if soulMemory is enabled
+    const features = getFeatures();
+    if (features.soulMemory) {
+      createDefaultDocuments(id, name).catch((err) => {
+        console.error(`[admin] Failed to create default documents for agent ${id}:`, err);
+      });
+    }
 
     res.json({ agent: inserted[0] });
   } catch (err) {

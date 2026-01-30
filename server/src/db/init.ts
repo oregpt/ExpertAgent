@@ -276,7 +276,67 @@ async function createTablesIfNotExist(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_gitlab_refreshes_status ON ai_gitlab_refreshes(status)
   `).catch(() => {});
 
-  console.log('[db] All tables created/verified');
+  // ============================================================================
+  // v2: Soul & Memory System Tables
+  // ============================================================================
+
+  // Agent documents table (soul.md, memory.md, context.md, daily/*.md)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ai_agent_documents (
+      id SERIAL PRIMARY KEY,
+      agent_id VARCHAR(64) NOT NULL,
+      doc_type VARCHAR(50) NOT NULL,
+      doc_key VARCHAR(255) NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+    )
+  `);
+
+  // Indexes for agent documents
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_agent_documents_agent_type
+    ON ai_agent_documents(agent_id, doc_type)
+  `).catch(() => {});
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_documents_agent_key
+    ON ai_agent_documents(agent_id, doc_key)
+  `).catch(() => {});
+
+  // Agent memory embeddings table (chunked vectors for semantic search)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ai_agent_memory_embeddings (
+      id SERIAL PRIMARY KEY,
+      agent_id VARCHAR(64) NOT NULL,
+      doc_id INTEGER NOT NULL REFERENCES ai_agent_documents(id) ON DELETE CASCADE,
+      chunk_text TEXT NOT NULL,
+      embedding vector(1536),
+      line_start INTEGER,
+      line_end INTEGER,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL
+    )
+  `);
+
+  // Indexes for memory embeddings
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_agent_memory_embeddings_agent
+    ON ai_agent_memory_embeddings(agent_id)
+  `).catch(() => {});
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_agent_memory_embeddings_doc
+    ON ai_agent_memory_embeddings(doc_id)
+  `).catch(() => {});
+
+  // Vector similarity index (HNSW is more reliable for small/empty datasets)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_agent_memory_embeddings_vector
+    ON ai_agent_memory_embeddings
+    USING hnsw (embedding vector_cosine_ops)
+  `).catch(() => {
+    console.log('[db] HNSW vector index creation skipped (may already exist or pgvector not ready)');
+  });
+
+  console.log('[db] All tables created/verified (including v2 soul & memory)');
 }
 
 /**

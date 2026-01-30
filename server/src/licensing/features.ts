@@ -27,6 +27,10 @@ export interface FeatureFlags {
 
   // GitLab KB Sync (pull docs from GitLab to Knowledge Base)
   gitlabKbSync: boolean;
+
+  // Soul & Memory System (v2) — self-evolving agent personality and memory
+  // If OFF → agent uses static system prompt from instructions field (v1 behavior)
+  soulMemory: boolean;
 }
 
 /**
@@ -41,6 +45,7 @@ export const BASE_FEATURES: FeatureFlags = {
   allowedCapabilities: [],
   customBranding: false,
   gitlabKbSync: false,
+  soulMemory: false,
 };
 
 /**
@@ -55,6 +60,7 @@ export const FULL_FEATURES: FeatureFlags = {
   allowedCapabilities: ['*'], // Wildcard = all capabilities
   customBranding: true,
   gitlabKbSync: true,
+  soulMemory: true,
 };
 
 // Current features (set on startup)
@@ -126,6 +132,7 @@ function summarizeFeatures(f: FeatureFlags): string {
   }
   if (f.customBranding) parts.push('customBranding');
   if (f.gitlabKbSync) parts.push('gitlabKbSync');
+  if (f.soulMemory) parts.push('soulMemory');
 
   return parts.length > 0 ? parts.join(', ') : 'BASE (no features)';
 }

@@ -114,6 +114,33 @@ export const capabilityTokens = pgTable('ai_capability_tokens', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// ============================================================================
+// v2: Soul & Memory System — Agent Documents + Memory Embeddings
+// ============================================================================
+
+// Agent-editable documents: soul.md, memory.md, context.md, daily/*.md
+export const agentDocuments = pgTable('ai_agent_documents', {
+  id: serial('id').primaryKey(),
+  agentId: varchar('agent_id', { length: 64 }).notNull(),
+  docType: varchar('doc_type', { length: 50 }).notNull(), // 'soul', 'memory', 'context', 'daily'
+  docKey: varchar('doc_key', { length: 255 }).notNull(),   // e.g., 'soul.md', 'daily/2026-01-30.md'
+  content: text('content').notNull().default(''),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Chunked embeddings for semantic search across agent memory documents
+export const agentMemoryEmbeddings = pgTable('ai_agent_memory_embeddings', {
+  id: serial('id').primaryKey(),
+  agentId: varchar('agent_id', { length: 64 }).notNull(),
+  docId: integer('doc_id').notNull(), // FK to ai_agent_documents(id)
+  chunkText: text('chunk_text').notNull(),
+  embedding: vector('embedding'), // pgvector 1536-dim
+  lineStart: integer('line_start'),
+  lineEnd: integer('line_end'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // Legacy table - keeping for backwards compatibility
 export const capabilitySecrets = pgTable('ai_capability_secrets', {
   id: serial('id').primaryKey(),

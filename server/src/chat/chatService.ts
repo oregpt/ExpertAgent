@@ -5,6 +5,8 @@ import { getProviderForModel } from '../llm';
 import { LLMMessage } from '../llm/types';
 import { executeWithTools } from '../llm/toolExecutor';
 import { eq, desc, and } from 'drizzle-orm';
+import { getFeatures } from '../licensing/features';
+import { getDocument, searchMemory } from '../memory';
 
 // ============================================================================
 // Helpers
@@ -87,6 +89,90 @@ async function agentHasToolsEnabled(agentId: string): Promise<boolean> {
 }
 
 // ============================================================================
+// v2: Soul & Memory System Prompt Builder
+// ============================================================================
+
+/**
+ * Build the system prompt for an agent.
+ *
+ * If soulMemory feature is ENABLED:
+ *   - Uses soul.md as the primary personality/instructions
+ *   - Appends context.md for customer/org context
+ *   - Falls back to static `instructions` field if soul.md doesn't exist yet
+ *
+ * If soulMemory feature is DISABLED:
+ *   - Uses the static `instructions` field (v1 behavior)
+ */
+async function buildSystemPrompt(agent: any, hasTools: boolean): Promise<string> {
+  const features = getFeatures();
+  const agentId = agent?.id as string;
+
+  let systemInstructions: string;
+
+  if (features.soulMemory && agentId) {
+    // v2: Load soul.md + context.md from document store
+    const [soulDoc, contextDoc] = await Promise.all([
+      getDocument(agentId, 'soul.md'),
+      getDocument(agentId, 'context.md'),
+    ]);
+
+    if (soulDoc && soulDoc.content.trim()) {
+      systemInstructions = soulDoc.content;
+
+      // Append context if it exists and has content
+      if (contextDoc && contextDoc.content.trim()) {
+        systemInstructions += '\n\n---\n\n' + contextDoc.content;
+      }
+    } else {
+      // Fallback to v1 static instructions if soul.md not set up
+      systemInstructions =
+        (agent?.instructions as string | null) ||
+        'You are an Agent-in-a-Box assistant. Use the provided context and tools when relevant. Always cite your sources.';
+    }
+  } else {
+    // v1 behavior: static instructions field
+    systemInstructions =
+      (agent?.instructions as string | null) ||
+      'You are an Agent-in-a-Box assistant. Use the provided context and tools when relevant. Always cite your sources.';
+  }
+
+  if (hasTools) {
+    systemInstructions +=
+      '\n\nYou have access to tools that can help you answer questions. Use them when appropriate to fetch real-time data or perform actions.';
+  }
+
+  return systemInstructions;
+}
+
+/**
+ * Perform memory recall: search the agent's memory for context relevant
+ * to the user's message. Returns formatted context string or empty.
+ */
+async function recallMemory(agentId: string, userMessage: string): Promise<string> {
+  const features = getFeatures();
+  if (!features.soulMemory) return '';
+
+  try {
+    const results = await searchMemory(agentId, userMessage, 3);
+    if (results.length === 0) return '';
+
+    // Only include results above a relevance threshold
+    const relevant = results.filter((r) => r.similarity > 0.3);
+    if (relevant.length === 0) return '';
+
+    let memoryContext = '\n\n---\nRelevant Agent Memory:\n';
+    for (const r of relevant) {
+      memoryContext += `\n[From ${r.docKey}] ${r.chunkText}\n`;
+    }
+    return memoryContext;
+  } catch (err) {
+    // Memory recall is best-effort — don't block chat if it fails
+    console.warn('[chat] Memory recall failed:', err);
+    return '';
+  }
+}
+
+// ============================================================================
 // Main Chat Functions
 // ============================================================================
 
@@ -123,14 +209,8 @@ export async function generateReply(
   const agentRows = (await db.select().from(agents).where(eq(agents.id, agentId)).limit(1)) as any[];
   const agent = agentRows[0];
 
-  let systemInstructions =
-    (agent?.instructions as string | null) ||
-    'You are an Agent-in-a-Box assistant. Use the provided context and tools when relevant. Always cite your sources.';
-
-  if (hasTools) {
-    systemInstructions +=
-      '\n\nYou have access to tools that can help you answer questions. Use them when appropriate to fetch real-time data or perform actions.';
-  }
+  // v2: Build system prompt (soul.md + context.md if soulMemory enabled, else v1 static)
+  const systemInstructions = await buildSystemPrompt(agent, hasTools);
 
   history.push({
     role: 'system',
@@ -149,10 +229,16 @@ export async function generateReply(
     history.push({ role, content });
   }
 
-  // Build user message with RAG context
+  // Build user message with RAG context + memory recall
   let userContent = userMessage;
   if (rag.context) {
     userContent += `\n\n---\nRelevant Context from Knowledge Base:\n${rag.context}`;
+  }
+
+  // v2: Memory recall — search agent memory for relevant context
+  const memoryContext = await recallMemory(agentId, userMessage);
+  if (memoryContext) {
+    userContent += memoryContext;
   }
 
   history.push({ role: 'user', content: userContent });
@@ -223,13 +309,8 @@ export async function streamReply(
   const agentRows = (await db.select().from(agents).where(eq(agents.id, agentId)).limit(1)) as any[];
   const agent = agentRows[0];
 
-  let systemInstructions =
-    (agent?.instructions as string | null) ||
-    'You are an Agent-in-a-Box assistant. Use the provided context and tools when relevant. Always cite your sources.';
-  if (hasTools) {
-    systemInstructions +=
-      '\n\nYou have access to tools that can help you answer questions. Use them when appropriate to fetch real-time data or perform actions.';
-  }
+  // v2: Build system prompt (soul.md + context.md if soulMemory enabled, else v1 static)
+  const systemInstructions = await buildSystemPrompt(agent, hasTools);
 
   history.push({
     role: 'system',
@@ -248,10 +329,16 @@ export async function streamReply(
     history.push({ role, content });
   }
 
-  // Build user message with RAG context
+  // Build user message with RAG context + memory recall
   let userContent = userMessage;
   if (rag.context) {
     userContent += `\n\n---\nRelevant Context from Knowledge Base:\n${rag.context}`;
+  }
+
+  // v2: Memory recall — search agent memory for relevant context
+  const memoryContext = await recallMemory(agentId, userMessage);
+  if (memoryContext) {
+    userContent += memoryContext;
   }
 
   history.push({ role: 'user', content: userContent });

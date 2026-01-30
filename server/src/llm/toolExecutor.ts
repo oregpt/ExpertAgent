@@ -12,6 +12,8 @@ import { LLMMessage, Tool, GenerateResult, ToolCall, GenerateOptions } from './t
 import { getProviderForModel } from './index';
 import { getOrchestrator } from '../mcp-hub';
 import { getMCPServerManager } from '../mcp-hub/mcp-server-manager';
+import { getFeatures } from '../licensing/features';
+import { MEMORY_TOOLS, isMemoryTool, executeMemoryTool } from '../memory/memoryTools';
 
 const MAX_TOOL_ITERATIONS = 10;
 
@@ -160,6 +162,13 @@ export async function getDetailedToolsForAgent(agentId: string): Promise<Tool[]>
     });
   }
 
+  // v2: Add memory tools if soulMemory feature is enabled
+  const features = getFeatures();
+  if (features.soulMemory) {
+    tools.push(...MEMORY_TOOLS);
+    console.log('[tool-executor] Added memory tools:', MEMORY_TOOLS.map(t => t.name).join(', '));
+  }
+
   return tools;
 }
 
@@ -270,6 +279,30 @@ export async function executeWithTools(
     const toolResultMessages: LLMMessage[] = [];
 
     for (const toolCall of result.toolCalls) {
+      // v2: Check if this is a memory tool first
+      if (isMemoryTool(toolCall.name)) {
+        const memResult = await executeMemoryTool(options.agentId, toolCall);
+        
+        const MAX_OUTPUT = 20000;
+        let output = memResult.output;
+        if (output.length > MAX_OUTPUT) {
+          output = output.slice(0, MAX_OUTPUT) + '\n\n[OUTPUT TRUNCATED]';
+        }
+        
+        toolResultMessages.push({
+          role: 'tool',
+          content: output,
+          toolCallId: toolCall.id,
+        });
+        toolsUsed.push({
+          name: toolCall.name,
+          input: toolCall.input,
+          output,
+          success: memResult.success,
+        });
+        continue;
+      }
+
       // Parse the namespaced tool name (server__toolname)
       const parsed = parseNamespacedTool(toolCall.name);
 

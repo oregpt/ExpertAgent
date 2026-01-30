@@ -7,6 +7,7 @@ import { capabilityRouter } from './capabilityRoutes';
 import { kbRouter } from './kbRoutes';
 import { ragRouter } from './ragRoutes';
 import { adminRouter } from './adminRoutes';
+import { memoryRouter } from './memoryRoutes';
 import { getFeatures } from '../licensing';
 
 // Ensure uploads directory exists
@@ -38,6 +39,7 @@ export function createHttpApp() {
       multimodal: features.multimodal,
       customBranding: features.customBranding,
       mcpHub: features.mcpHub,
+      soulMemory: features.soulMemory,
     });
   });
 
@@ -46,6 +48,7 @@ export function createHttpApp() {
   app.use('/api/kb', kbRouter);
   app.use('/api/rag', ragRouter);
   app.use('/api/admin', adminRouter);
+  app.use('/api', memoryRouter);  // v2: Memory/document routes under /api/agents/:id/documents
 
   // In production, serve the frontend static files
   if (process.env.NODE_ENV === 'production') {

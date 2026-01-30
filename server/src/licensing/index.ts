@@ -73,6 +73,9 @@ function loadFeaturesFromEnv(): Partial<FeatureFlags> {
   const gitlabKbSync = parseBoolEnv(process.env.FEATURE_GITLAB_KB_SYNC);
   if (gitlabKbSync !== undefined) features.gitlabKbSync = gitlabKbSync;
 
+  const soulMemory = parseBoolEnv(process.env.FEATURE_SOUL_MEMORY);
+  if (soulMemory !== undefined) features.soulMemory = soulMemory;
+
   return features;
 }
 
