@@ -12,6 +12,7 @@ import { db } from '../db/client';
 import { agentCronJobs, agentTaskRuns } from '../db/schema';
 import { eq, and, lte, sql } from 'drizzle-orm';
 import { generateReply, startConversation, appendMessage } from '../chat/chatService';
+import { getFeatures } from '../licensing/features';
 
 // ============================================================================
 // Types
@@ -211,6 +212,18 @@ export async function executeJob(job: CronJob): Promise<void> {
         updatedAt: new Date(),
       })
       .where(eq(agentCronJobs.id, job.id));
+
+    // v2: Broadcast cron results to all enabled channels (if not heartbeat-like)
+    const trimmedReply = result.reply.trim();
+    if (trimmedReply !== 'HEARTBEAT_OK' && getFeatures().multiChannel) {
+      try {
+        const { channelRouter } = await import('../channels/channelRouter');
+        await channelRouter.sendToAllChannels(job.agentId, result.reply);
+        console.log(`[cron] Broadcast cron result to channels for job ${job.id}`);
+      } catch (channelErr) {
+        console.warn(`[cron] Channel broadcast failed for job ${job.id}:`, channelErr);
+      }
+    }
 
     console.log(`[cron] Job ${job.id} completed. Reply length: ${result.reply.length}`);
   } catch (err) {

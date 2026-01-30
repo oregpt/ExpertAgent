@@ -86,6 +86,7 @@ export function validateLicenseKey(licenseKey: string): LicenseValidationResult 
       deepTools: decoded.features.deepTools ?? BASE_FEATURES.deepTools,
       proactive: decoded.features.proactive ?? BASE_FEATURES.proactive,
       backgroundAgents: decoded.features.backgroundAgents ?? BASE_FEATURES.backgroundAgents,
+      multiChannel: decoded.features.multiChannel ?? BASE_FEATURES.multiChannel,
     };
 
     const result: LicenseValidationResult = {

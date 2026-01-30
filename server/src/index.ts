@@ -5,6 +5,7 @@ import { capabilityService } from './capabilities';
 import { initializeDatabase } from './db/init';
 import { initializeLicensing, getFeatures } from './licensing';
 import { proactiveEngine } from './proactive';
+import { channelRouter, SlackAdapter, TeamsAdapter, WebhookAdapter } from './channels';
 
 const config = loadConfig();
 const app = createHttpApp();
@@ -46,6 +47,30 @@ async function initializeCapabilities() {
   }
 }
 
+// Initialize multi-channel system (only if licensed)
+async function initializeChannels() {
+  const features = getFeatures();
+
+  if (!features.multiChannel) {
+    console.log('[server] Multi-channel disabled (not licensed)');
+    return;
+  }
+
+  try {
+    // Register all adapter types
+    channelRouter.registerAdapter(new SlackAdapter());
+    channelRouter.registerAdapter(new TeamsAdapter());
+    channelRouter.registerAdapter(new WebhookAdapter());
+
+    // Load channel configs from DB and initialize each adapter
+    await channelRouter.initializeAll();
+
+    console.log('[server] Multi-channel system initialized');
+  } catch (error) {
+    console.error('[server] Failed to initialize channels:', error);
+  }
+}
+
 // Start server
 app.listen(config.port, async () => {
   console.log(`Agent-in-a-Box server listening on port ${config.port}`);
@@ -62,15 +87,19 @@ app.listen(config.port, async () => {
 
   // Start proactive engine (heartbeats, cron jobs) — no-op if feature disabled
   proactiveEngine.start();
+
+  // Initialize multi-channel delivery — no-op if feature disabled
+  await initializeChannels();
 });
 
 // ============================================================================
 // Graceful Shutdown
 // ============================================================================
 
-function shutdown(signal: string) {
+async function shutdown(signal: string) {
   console.log(`\n[server] Received ${signal} — shutting down...`);
   proactiveEngine.stop();
+  await channelRouter.shutdown().catch(() => {});
   process.exit(0);
 }
 

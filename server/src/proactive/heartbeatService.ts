@@ -10,6 +10,7 @@ import { db } from '../db/client';
 import { agentHeartbeatConfig, agentTaskRuns } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { generateReply, startConversation, appendMessage } from '../chat/chatService';
+import { getFeatures } from '../licensing/features';
 
 // ============================================================================
 // Types
@@ -228,6 +229,18 @@ export async function executeHeartbeat(agentId: string): Promise<void> {
         updatedAt: new Date(),
       })
       .where(eq(agentHeartbeatConfig.agentId, agentId));
+
+    // v2: If the result is NOT "HEARTBEAT_OK", broadcast to all enabled channels
+    const trimmedReply = result.reply.trim();
+    if (trimmedReply !== 'HEARTBEAT_OK' && getFeatures().multiChannel) {
+      try {
+        const { channelRouter } = await import('../channels/channelRouter');
+        await channelRouter.sendToAllChannels(agentId, result.reply);
+        console.log(`[heartbeat] Broadcast heartbeat result to channels for agent ${agentId}`);
+      } catch (channelErr) {
+        console.warn(`[heartbeat] Channel broadcast failed for agent ${agentId}:`, channelErr);
+      }
+    }
 
     console.log(`[heartbeat] Agent ${agentId} heartbeat done. Response: "${result.reply.slice(0, 100)}..."`);
   } catch (err) {

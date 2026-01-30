@@ -401,7 +401,33 @@ async function createTablesIfNotExist(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_task_runs_agent ON ai_agent_task_runs(agent_id)
   `).catch(() => {});
 
-  console.log('[db] All tables created/verified (including v2 soul & memory + proactive engine)');
+  // ============================================================================
+  // v2: Multi-Channel Delivery Table
+  // ============================================================================
+
+  // Agent channels table (Slack, Teams, Webhook integrations)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ai_agent_channels (
+      id SERIAL PRIMARY KEY,
+      agent_id VARCHAR(64) NOT NULL,
+      channel_type VARCHAR(50) NOT NULL,
+      channel_name VARCHAR(100),
+      config JSONB NOT NULL DEFAULT '{}',
+      enabled BOOLEAN DEFAULT true,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // Indexes for agent channels
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_channels_agent ON ai_agent_channels(agent_id)
+  `).catch(() => {});
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_channels_type ON ai_agent_channels(channel_type)
+  `).catch(() => {});
+
+  console.log('[db] All tables created/verified (including v2 soul & memory + proactive engine + channels)');
 }
 
 /**

@@ -187,6 +187,22 @@ export const agentTaskRuns = pgTable('ai_agent_task_runs', {
   error: text('error'),
 });
 
+// ============================================================================
+// v2: Multi-Channel Delivery — Agent Channel Configurations
+// ============================================================================
+
+// Per-agent channel integrations (Slack, Teams, Webhook)
+export const agentChannels = pgTable('ai_agent_channels', {
+  id: serial('id').primaryKey(),
+  agentId: varchar('agent_id', { length: 64 }).notNull(),
+  channelType: varchar('channel_type', { length: 50 }).notNull(), // 'slack', 'teams', 'webhook'
+  channelName: varchar('channel_name', { length: 100 }),           // friendly display name
+  config: jsonb('config').notNull().default({}),                   // channel-specific config (tokens, URLs, secrets)
+  enabled: boolean('enabled').default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 // Legacy table - keeping for backwards compatibility
 export const capabilitySecrets = pgTable('ai_capability_secrets', {
   id: serial('id').primaryKey(),

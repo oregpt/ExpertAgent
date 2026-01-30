@@ -1,5 +1,119 @@
 # Agent-in-a-Box v2 Changelog
 
+## 2.0.0-alpha.5 (2026-01-31)
+
+### Phase 4: Multi-Channel Delivery ✅
+
+Agents reach users where they already work — Slack, Teams, and generic webhooks.
+
+#### 4A: Channel Abstraction Layer
+- Created `server/src/channels/types.ts` — common interfaces: `ChannelMessage`, `InboundMessage`, `ChannelAdapter`, `AgentChannelRow`
+- Created `server/src/channels/channelRouter.ts` — singleton ChannelRouter class
+  - `registerAdapter(adapter)` — register a channel adapter by name
+  - `initializeAll()` — load all enabled channel configs from DB, initialize adapters
+  - `sendMessage(channelType, channelId, message)` — route outbound to correct adapter with formatting
+  - `sendToAllChannels(agentId, text)` — broadcast to all enabled channels (used by proactive engine)
+  - `handleInbound(channelType, req, res)` — route inbound webhook to adapter
+  - `processInbound(inbound)` — find agent for channel, call chatService, send response back
+  - `shutdown()` — graceful cleanup of all adapters
+  - Full logging for all sends/receives
+- Created `server/src/channels/messageFormatter.ts`
+  - `formatForSlack(text)` — markdown → Slack mrkdwn (bold, italic, code, links, headers, strikethrough)
+  - `formatForTeams(text)` — passthrough (Teams supports standard markdown)
+  - `formatForWebhook(text)` — plain passthrough
+  - `formatForChannel(text, channelType)` — auto-dispatch by channel type
+  - Code block and inline code protection during formatting
+
+#### 4B: Slack Integration
+- Created `server/src/channels/slack/slackAdapter.ts` — implements ChannelAdapter
+  - Uses Slack Web API via axios (NO @slack/bolt dependency)
+  - `initialize(config)` — configures bot_token, signing_secret; auto-resolves bot user ID via auth.test
+  - `sendMessage(channelId, message)` — POST to chat.postMessage with thread support
+  - `handleInbound(req, res)` — handles Events API: URL verification challenge, message events
+  - Filters bot messages and subtypes to prevent infinite loops
+  - `verifyWebhook(req)` — HMAC-SHA256 signature verification per Slack spec
+  - Timing-safe comparison, 5-minute replay attack prevention
+
+#### 4C: Microsoft Teams Integration
+- Created `server/src/channels/teams/teamsAdapter.ts` — implements ChannelAdapter
+  - Uses Bot Framework REST API via axios (NO botbuilder SDK)
+  - `initialize(config)` — configures app_id, app_password
+  - `getAccessToken()` — OAuth2 client credentials flow with in-memory caching (5-minute buffer before expiry)
+  - `sendMessage(conversationId, message)` — POST activity to Bot Framework service URL
+  - `handleInbound(req, res)` — parses Bot Framework activity, strips @mentions
+  - Responds with 200 immediately, processes async
+  - Captures service URL from first inbound for reply routing
+
+#### 4D: Webhook Channel (Generic)
+- Created `server/src/channels/webhook/webhookAdapter.ts` — implements ChannelAdapter
+  - `initialize(config)` — configures callback_url, shared secret
+  - `sendMessage(channelId, message)` — POST JSON to callback URL with HMAC-SHA256 signature header
+  - `handleInbound(req, res)` — accepts POST with { text, senderId, senderName? }
+  - `verifyWebhook(req)` — verifies X-Webhook-Signature header via HMAC-SHA256
+  - Simple, universal — any system can integrate via webhooks
+
+#### 4E: Database Schema
+- Created `server/src/db/migrations/006_agent_channels.sql` — ai_agent_channels table
+  - agent_id, channel_type (slack/teams/webhook), channel_name, config (JSONB), enabled
+  - Indexes on agent_id and channel_type
+- Updated `server/src/db/schema.ts` with Drizzle `agentChannels` table definition
+- Updated `server/src/db/init.ts` to create table + indexes on startup
+
+#### 4F: API Routes
+- Created `server/src/http/channelRoutes.ts` with all endpoints:
+  - `GET /api/agents/:id/channels` — list configured channels (hides config secrets)
+  - `POST /api/agents/:id/channels` — add channel with validation per type
+  - `PUT /api/agents/:id/channels/:channelId` — update channel config/status
+  - `DELETE /api/agents/:id/channels/:channelId` — remove channel
+  - `POST /api/channels/slack/events` — Slack Events API webhook (signature verified)
+  - `POST /api/channels/teams/messages` — Teams Bot Framework webhook
+  - `POST /api/channels/webhook/:agentId` — generic inbound webhook (HMAC verified)
+- All CRUD routes gated by `multiChannel` feature flag (403 if disabled)
+- Webhook endpoints return 404 when feature disabled (but route exists)
+- Validates channel-specific config fields on create (bot_token for Slack, app_id for Teams, etc.)
+- Registered in `app.ts`
+
+#### 4G: Proactive Engine Integration
+- Updated `server/src/proactive/heartbeatService.ts`:
+  - After heartbeat completes with non-HEARTBEAT_OK result → broadcasts to all enabled channels
+- Updated `server/src/proactive/cronService.ts`:
+  - After cron job completes with non-HEARTBEAT_OK result → broadcasts to all enabled channels
+- Both use dynamic import to avoid circular dependency issues
+
+#### 4H: Server Integration
+- Updated `server/src/index.ts`:
+  - Added `initializeChannels()` — registers Slack, Teams, Webhook adapters; loads configs from DB
+  - Only initializes if `multiChannel` feature flag is enabled
+  - Calls after proactive engine start
+  - Graceful shutdown includes `channelRouter.shutdown()`
+
+#### 4I: Feature Flag
+- Added `multiChannel: boolean` to `FeatureFlags` interface
+- Added to `BASE_FEATURES` (false) and `FULL_FEATURES` (true)
+- Added `FEATURE_MULTI_CHANNEL` env var support
+- Added to license key validation in `license.ts`
+- Added to feature summary logging
+- When disabled: no channel router starts, CRUD returns 403, webhooks return 404
+
+#### 4J: Barrel Export
+- Created `server/src/channels/index.ts` — exports channelRouter, formatters, types, and all adapters
+
+#### Infrastructure
+- Added raw body capture middleware in `app.ts` (required for Slack/webhook HMAC verification)
+
+### Design Principles
+- **NO NEW NPM DEPENDENCIES** — uses axios (already installed) for all HTTP calls
+- **No @slack/bolt, no botbuilder SDK** — raw REST API calls only
+- **Feature flag modularity** — multiChannel=false means no channels initialize, widget still works
+- **Async webhook processing** — all webhook endpoints respond immediately (200 OK), process async (Slack 3s timeout)
+- **Slack signature verification** — HMAC-SHA256 with timing-safe comparison, replay attack prevention
+- **Teams token caching** — in-memory with 5-minute pre-expiry buffer
+- **Channel router is the hub** — proactive engine and future features all send through it
+- **Secrets in JSONB config** — bot tokens, passwords stored in config column (encrypted at rest in production DB)
+- **Clean TypeScript build** — zero compilation errors
+
+---
+
 ## 2.0.0-alpha.4 (2026-01-31)
 
 ### Phase 3: Proactive Engine ✅

@@ -85,6 +85,9 @@ function loadFeaturesFromEnv(): Partial<FeatureFlags> {
   const backgroundAgents = parseBoolEnv(process.env.FEATURE_BACKGROUND_AGENTS);
   if (backgroundAgents !== undefined) features.backgroundAgents = backgroundAgents;
 
+  const multiChannel = parseBoolEnv(process.env.FEATURE_MULTI_CHANNEL);
+  if (multiChannel !== undefined) features.multiChannel = multiChannel;
+
   return features;
 }
 

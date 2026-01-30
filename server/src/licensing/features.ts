@@ -43,6 +43,10 @@ export interface FeatureFlags {
   // Background Agents (v2) — sub-agent spawning for fire-and-forget tasks
   // If OFF → no spawnTask available
   backgroundAgents: boolean;
+
+  // Multi-Channel Delivery (v2) — Slack, Teams, webhooks
+  // If OFF → widget only (v1 behavior). No channel router starts, CRUD returns 403.
+  multiChannel: boolean;
 }
 
 /**
@@ -61,6 +65,7 @@ export const BASE_FEATURES: FeatureFlags = {
   deepTools: false,
   proactive: false,
   backgroundAgents: false,
+  multiChannel: false,
 };
 
 /**
@@ -79,6 +84,7 @@ export const FULL_FEATURES: FeatureFlags = {
   deepTools: true,
   proactive: true,
   backgroundAgents: true,
+  multiChannel: true,
 };
 
 // Current features (set on startup)
@@ -154,6 +160,7 @@ function summarizeFeatures(f: FeatureFlags): string {
   if (f.deepTools) parts.push('deepTools');
   if (f.proactive) parts.push('proactive');
   if (f.backgroundAgents) parts.push('backgroundAgents');
+  if (f.multiChannel) parts.push('multiChannel');
 
   return parts.length > 0 ? parts.join(', ') : 'BASE (no features)';
 }

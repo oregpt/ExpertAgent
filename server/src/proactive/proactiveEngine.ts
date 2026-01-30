@@ -13,6 +13,7 @@
 import { getFeatures } from '../licensing/features';
 import { getAllEnabledConfigs, isDue, executeHeartbeat } from './heartbeatService';
 import { getDueJobs, executeJob } from './cronService';
+import { channelRouter } from '../channels/channelRouter';
 
 // ============================================================================
 // Singleton

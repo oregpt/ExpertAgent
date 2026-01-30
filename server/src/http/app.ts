@@ -9,6 +9,7 @@ import { ragRouter } from './ragRoutes';
 import { adminRouter } from './adminRoutes';
 import { memoryRouter } from './memoryRoutes';
 import { proactiveRouter } from './proactiveRoutes';
+import { channelRoutes } from './channelRoutes';
 import { getFeatures } from '../licensing';
 
 // Ensure uploads directory exists
@@ -23,7 +24,16 @@ export function createHttpApp() {
 
   // Enable CORS for all origins (dev mode)
   app.use(cors());
-  app.use(express.json());
+
+  // Parse JSON and capture raw body (needed for Slack/webhook signature verification)
+  app.use(
+    express.json({
+      verify: (req: any, _res, buf) => {
+        // Store raw body for HMAC signature verification (Slack, webhooks)
+        req.rawBody = buf.toString('utf8');
+      },
+    })
+  );
 
   // Serve uploaded files statically
   app.use('/uploads', express.static(uploadsPath));
@@ -51,6 +61,7 @@ export function createHttpApp() {
   app.use('/api/admin', adminRouter);
   app.use('/api', memoryRouter);      // v2: Memory/document routes under /api/agents/:id/documents
   app.use('/api', proactiveRouter);   // v2: Proactive engine routes (heartbeat, cron, task runs)
+  app.use('/api', channelRoutes);     // v2: Multi-channel routes (CRUD + inbound webhooks)
 
   // In production, serve the frontend static files
   if (process.env.NODE_ENV === 'production') {
