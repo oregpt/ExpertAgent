@@ -14,6 +14,7 @@ import { getOrchestrator } from '../mcp-hub';
 import { getMCPServerManager } from '../mcp-hub/mcp-server-manager';
 import { getFeatures } from '../licensing/features';
 import { MEMORY_TOOLS, isMemoryTool, executeMemoryTool } from '../memory/memoryTools';
+import { DEEP_TOOLS, isDeepTool, executeDeepTool } from '../tools/deepTools';
 
 const MAX_TOOL_ITERATIONS = 10;
 
@@ -169,6 +170,12 @@ export async function getDetailedToolsForAgent(agentId: string): Promise<Tool[]>
     console.log('[tool-executor] Added memory tools:', MEMORY_TOOLS.map(t => t.name).join(', '));
   }
 
+  // v2: Add deep tools if deepTools feature is enabled
+  if (features.deepTools) {
+    tools.push(...DEEP_TOOLS);
+    console.log('[tool-executor] Added deep tools:', DEEP_TOOLS.map(t => t.name).join(', '));
+  }
+
   return tools;
 }
 
@@ -299,6 +306,30 @@ export async function executeWithTools(
           input: toolCall.input,
           output,
           success: memResult.success,
+        });
+        continue;
+      }
+
+      // v2: Check if this is a deep tool (web__search, web__fetch)
+      if (isDeepTool(toolCall.name)) {
+        const deepResult = await executeDeepTool(toolCall);
+        
+        const MAX_OUTPUT = 20000;
+        let output = deepResult.output;
+        if (output.length > MAX_OUTPUT) {
+          output = output.slice(0, MAX_OUTPUT) + '\n\n[OUTPUT TRUNCATED]';
+        }
+        
+        toolResultMessages.push({
+          role: 'tool',
+          content: output,
+          toolCallId: toolCall.id,
+        });
+        toolsUsed.push({
+          name: toolCall.name,
+          input: toolCall.input,
+          output,
+          success: deepResult.success,
         });
         continue;
       }

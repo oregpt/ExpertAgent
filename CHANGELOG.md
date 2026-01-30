@@ -1,5 +1,62 @@
 # Agent-in-a-Box v2 Changelog
 
+## 2.0.0-alpha.3 (2026-01-31)
+
+### Phase 2: Deep Tool Ecosystem ✅
+
+Real-world tools beyond API wrappers — agents can now search the web and read pages.
+
+#### 2A: Web Search Tool
+- Created `server/src/tools/webSearch.ts`
+- Tool name: `web__search` — search the web via Brave Search API
+- Input: `{ query: string, count?: number }` (default count=5, max 10)
+- Returns formatted results with title, URL, and snippet
+- Graceful degradation: if `BRAVE_API_KEY` not set, returns helpful error message (tool still registered)
+- Logging: logs query and result count on every call
+
+#### 2B: Web Fetch Tool
+- Created `server/src/tools/webFetch.ts`
+- Tool name: `web__fetch` — fetch a URL and extract readable text content
+- Input: `{ url: string, maxChars?: number }` (default maxChars=10000)
+- Simple HTML-to-text extraction: strips `<script>`, `<style>`, `<nav>`, `<footer>`, `<header>`, `<noscript>`, `<svg>` blocks; decodes HTML entities; collapses whitespace
+- Extracts page `<title>`, returns structured output with url/title/content/truncated
+- 2MB download limit, 15s timeout, User-Agent header
+- No new dependencies — uses axios (already installed) + regex
+- Logging: logs URL and extracted char count on every call
+
+#### 2C: Tool Registration
+- Created `server/src/tools/deepTools.ts` — barrel file exporting all deep tool definitions and unified executor
+- `getDeepToolDefinitions()` returns tool schemas (same format as memory tools)
+- `isDeepTool(name)` checks if a tool name is a deep tool
+- `executeDeepTool(toolCall)` routes to the correct handler
+- Updated `server/src/llm/toolExecutor.ts`:
+  - Imports deep tools alongside memory tools
+  - Adds deep tools to tool list when `deepTools` feature flag is enabled
+  - Routes `web__search` and `web__fetch` calls through deep tool executor
+  - Output truncation (20k chars) applied consistently
+
+#### 2D: Feature Flag
+- Added `deepTools: boolean` to `FeatureFlags` interface in `features.ts`
+- Added to `BASE_FEATURES` (false) and `FULL_FEATURES` (true)
+- Added `FEATURE_DEEP_TOOLS` env var support in licensing `index.ts`
+- Added `deepTools` to license key validation in `license.ts`
+- Added `deepTools` to feature summary logging
+- All deep tools gated by this flag — if off, tools don't appear in tool list
+
+#### 2E: Logging
+- `web__search`: logs query string and result count
+- `web__fetch`: logs URL and extracted character count
+- `toolExecutor`: logs when deep tools are added to tool list
+
+### Design Principles
+- **Pattern consistency:** Follows exact same structure as Phase 1 memory tools (memoryTools.ts)
+- **No new dependencies:** Uses axios (already installed) + regex for HTML extraction
+- **Graceful degradation:** Missing BRAVE_API_KEY = helpful error, not a crash
+- **Feature flag modularity:** deepTools=false → these tools simply don't exist in the tool list
+- **Simple extraction:** No Playwright, no Puppeteer, no heavy libraries — just HTML stripping
+
+---
+
 ## 2.0.0-alpha.2 (2026-01-30)
 
 ### Phase 1: Soul & Memory System ✅

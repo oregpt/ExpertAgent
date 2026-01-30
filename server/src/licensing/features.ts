@@ -31,6 +31,10 @@ export interface FeatureFlags {
   // Soul & Memory System (v2) — self-evolving agent personality and memory
   // If OFF → agent uses static system prompt from instructions field (v1 behavior)
   soulMemory: boolean;
+
+  // Deep Tools (v2) — web search, web fetch, and other real-world tools
+  // If OFF → only v1 capabilities (MCP Hub / anyapi tools)
+  deepTools: boolean;
 }
 
 /**
@@ -46,6 +50,7 @@ export const BASE_FEATURES: FeatureFlags = {
   customBranding: false,
   gitlabKbSync: false,
   soulMemory: false,
+  deepTools: false,
 };
 
 /**
@@ -61,6 +66,7 @@ export const FULL_FEATURES: FeatureFlags = {
   customBranding: true,
   gitlabKbSync: true,
   soulMemory: true,
+  deepTools: true,
 };
 
 // Current features (set on startup)
@@ -133,6 +139,7 @@ function summarizeFeatures(f: FeatureFlags): string {
   if (f.customBranding) parts.push('customBranding');
   if (f.gitlabKbSync) parts.push('gitlabKbSync');
   if (f.soulMemory) parts.push('soulMemory');
+  if (f.deepTools) parts.push('deepTools');
 
   return parts.length > 0 ? parts.join(', ') : 'BASE (no features)';
 }

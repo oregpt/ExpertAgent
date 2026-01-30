@@ -76,6 +76,9 @@ function loadFeaturesFromEnv(): Partial<FeatureFlags> {
   const soulMemory = parseBoolEnv(process.env.FEATURE_SOUL_MEMORY);
   if (soulMemory !== undefined) features.soulMemory = soulMemory;
 
+  const deepTools = parseBoolEnv(process.env.FEATURE_DEEP_TOOLS);
+  if (deepTools !== undefined) features.deepTools = deepTools;
+
   return features;
 }
 
