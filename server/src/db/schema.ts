@@ -59,6 +59,12 @@ export const conversations = pgTable('ai_conversations', {
   agentId: varchar('agent_id', { length: 64 }).notNull(),
   externalUserId: varchar('external_user_id', { length: 255 }),
   title: varchar('title', { length: 255 }),
+  // v2 Phase 5: Session metadata
+  channelType: varchar('channel_type', { length: 50 }),          // 'widget', 'slack', 'teams', 'webhook', 'cron', etc.
+  channelId: varchar('channel_id', { length: 255 }),             // channel-specific identifier
+  sessionSummary: text('session_summary'),                        // LLM-generated conversation summary
+  messageCount: integer('message_count').default(0),              // running message count
+  lastMessageAt: timestamp('last_message_at', { withTimezone: true }), // last activity timestamp
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

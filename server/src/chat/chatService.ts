@@ -6,7 +6,9 @@ import { LLMMessage } from '../llm/types';
 import { executeWithTools } from '../llm/toolExecutor';
 import { eq, desc, and } from 'drizzle-orm';
 import { getFeatures } from '../licensing/features';
-import { getDocument, searchMemory } from '../memory';
+import { buildContext } from '../session/contextBuilder';
+import { updateSessionActivity, shouldSummarize, summarizeSession } from '../session/sessionManager';
+import { getDocument, upsertDocument } from '../memory/documentService';
 
 // ============================================================================
 // Helpers
@@ -89,87 +91,76 @@ async function agentHasToolsEnabled(agentId: string): Promise<boolean> {
 }
 
 // ============================================================================
-// v2: Soul & Memory System Prompt Builder
+// v2 Phase 5: Daily Log Auto-Append (Fire-and-Forget)
 // ============================================================================
 
 /**
- * Build the system prompt for an agent.
+ * Append a conversation turn to the daily log document.
+ * Fire-and-forget — never blocks the user response.
  *
- * If soulMemory feature is ENABLED:
- *   - Uses soul.md as the primary personality/instructions
- *   - Appends context.md for customer/org context
- *   - Falls back to static `instructions` field if soul.md doesn't exist yet
- *
- * If soulMemory feature is DISABLED:
- *   - Uses the static `instructions` field (v1 behavior)
+ * Format: ### HH:MM - [channel_type]\nUser: ...\nAgent: ...\n\n
+ * Doc key: daily/YYYY-MM-DD.md
  */
-async function buildSystemPrompt(agent: any, hasTools: boolean): Promise<string> {
+function appendToDailyLog(
+  agentId: string,
+  userMessage: string,
+  agentReply: string,
+  channelType?: string
+): void {
   const features = getFeatures();
-  const agentId = agent?.id as string;
+  if (!features.soulMemory) return;
 
-  let systemInstructions: string;
+  // Fire-and-forget via unhandled promise
+  (async () => {
+    try {
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const timeStr = now.toTimeString().slice(0, 5);   // HH:MM
+      const docKey = `daily/${dateStr}.md`;
+      const channel = channelType || 'widget';
 
-  if (features.soulMemory && agentId) {
-    // v2: Load soul.md + context.md from document store
-    const [soulDoc, contextDoc] = await Promise.all([
-      getDocument(agentId, 'soul.md'),
-      getDocument(agentId, 'context.md'),
-    ]);
+      // Build the log entry
+      const userSnippet = userMessage.slice(0, 100) + (userMessage.length > 100 ? '...' : '');
+      const agentSnippet = agentReply.slice(0, 200) + (agentReply.length > 200 ? '...' : '');
+      const entry = `### ${timeStr} - [${channel}]\nUser: ${userSnippet}\nAgent: ${agentSnippet}\n\n`;
 
-    if (soulDoc && soulDoc.content.trim()) {
-      systemInstructions = soulDoc.content;
+      // Read existing content and append
+      const existing = await getDocument(agentId, docKey);
+      const existingContent = existing?.content || `# Daily Log — ${dateStr}\n\n`;
+      const updatedContent = existingContent + entry;
 
-      // Append context if it exists and has content
-      if (contextDoc && contextDoc.content.trim()) {
-        systemInstructions += '\n\n---\n\n' + contextDoc.content;
-      }
-    } else {
-      // Fallback to v1 static instructions if soul.md not set up
-      systemInstructions =
-        (agent?.instructions as string | null) ||
-        'You are an Agent-in-a-Box assistant. Use the provided context and tools when relevant. Always cite your sources.';
+      await upsertDocument(agentId, 'daily', docKey, updatedContent);
+    } catch (err) {
+      // Best-effort — silently swallow errors
+      console.warn('[chat] Daily log append failed (non-fatal):', err);
     }
-  } else {
-    // v1 behavior: static instructions field
-    systemInstructions =
-      (agent?.instructions as string | null) ||
-      'You are an Agent-in-a-Box assistant. Use the provided context and tools when relevant. Always cite your sources.';
-  }
-
-  if (hasTools) {
-    systemInstructions +=
-      '\n\nYou have access to tools that can help you answer questions. Use them when appropriate to fetch real-time data or perform actions.';
-  }
-
-  return systemInstructions;
+  })();
 }
 
+// ============================================================================
+// v2 Phase 5: Post-Response Session Maintenance (Fire-and-Forget)
+// ============================================================================
+
 /**
- * Perform memory recall: search the agent's memory for context relevant
- * to the user's message. Returns formatted context string or empty.
+ * After a response is generated, update session activity and optionally
+ * trigger lazy summarization. Fire-and-forget.
  */
-async function recallMemory(agentId: string, userMessage: string): Promise<string> {
-  const features = getFeatures();
-  if (!features.soulMemory) return '';
+function postResponseMaintenance(conversationId: number): void {
+  (async () => {
+    try {
+      // Bump message_count and last_message_at
+      await updateSessionActivity(conversationId);
 
-  try {
-    const results = await searchMemory(agentId, userMessage, 3);
-    if (results.length === 0) return '';
-
-    // Only include results above a relevance threshold
-    const relevant = results.filter((r) => r.similarity > 0.3);
-    if (relevant.length === 0) return '';
-
-    let memoryContext = '\n\n---\nRelevant Agent Memory:\n';
-    for (const r of relevant) {
-      memoryContext += `\n[From ${r.docKey}] ${r.chunkText}\n`;
+      // Check if this conversation should be summarized
+      const needsSummary = await shouldSummarize(conversationId);
+      if (needsSummary) {
+        console.log(`[chat] Triggering lazy summarization for conversation ${conversationId}`);
+        await summarizeSession(conversationId);
+      }
+    } catch (err) {
+      console.warn('[chat] Post-response maintenance failed (non-fatal):', err);
     }
-    return memoryContext;
-  } catch (err) {
-    // Memory recall is best-effort — don't block chat if it fails
-    console.warn('[chat] Memory recall failed:', err);
-    return '';
-  }
+  })();
 }
 
 // ============================================================================
@@ -198,36 +189,22 @@ export async function generateReply(
 
   // Check if tools are enabled first
   const hasTools = await agentHasToolsEnabled(agentId);
-  
+
   // Get RAG context (reduced when tools enabled to save tokens)
   const ragMaxTokens = hasTools ? 1000 : 2000;
   const rag = await getRelevantContext(agentId, userMessage, ragMaxTokens);
 
-  // Build conversation history
+  // v2 Phase 5: Use contextBuilder to assemble all context
+  const ctx = await buildContext(agentId, conversationId, userMessage, { hasTools });
+
+  // Build LLM message array from context
   const history: LLMMessage[] = [];
 
-  const agentRows = (await db.select().from(agents).where(eq(agents.id, agentId)).limit(1)) as any[];
-  const agent = agentRows[0];
+  // System prompt (from contextBuilder: soul.md + context.md + session summaries + channel awareness)
+  history.push({ role: 'system', content: ctx.systemPrompt });
 
-  // v2: Build system prompt (soul.md + context.md if soulMemory enabled, else v1 static)
-  const systemInstructions = await buildSystemPrompt(agent, hasTools);
-
-  history.push({
-    role: 'system',
-    content: systemInstructions,
-  });
-
-  // Add conversation history (limit when using tools to save tokens)
-  const maxHistory = hasTools ? 4 : 20;
-  const recentMessages = (conv.messages as any[]).slice(-maxHistory);
-  for (const m of recentMessages) {
-    const role = (m.role as 'user' | 'assistant' | 'system') || 'user';
-    // Truncate long messages to save tokens
-    const content = (m.content as string).length > 1500 
-      ? (m.content as string).slice(0, 1500) + '...[truncated]'
-      : m.content as string;
-    history.push({ role, content });
-  }
+  // Session history (from contextBuilder: recent messages, already truncated)
+  history.push(...ctx.sessionHistory);
 
   // Build user message with RAG context + memory recall
   let userContent = userMessage;
@@ -235,14 +212,16 @@ export async function generateReply(
     userContent += `\n\n---\nRelevant Context from Knowledge Base:\n${rag.context}`;
   }
 
-  // v2: Memory recall — search agent memory for relevant context
-  const memoryContext = await recallMemory(agentId, userMessage);
-  if (memoryContext) {
-    userContent += memoryContext;
+  // Memory recall from contextBuilder
+  if (ctx.memoryContext) {
+    userContent += `\n\n---\n${ctx.memoryContext}`;
   }
 
   history.push({ role: 'user', content: userContent });
 
+  // Get agent model
+  const agentRows = (await db.select().from(agents).where(eq(agents.id, agentId)).limit(1)) as any[];
+  const agent = agentRows[0];
   const model =
     (agent?.defaultModel as string | null) ||
     process.env.DEFAULT_MODEL ||
@@ -277,6 +256,11 @@ export async function generateReply(
     toolsUsed,
   });
 
+  // v2 Phase 5: Fire-and-forget post-response tasks
+  const channelType = (conv.conversation.channelType as string | null) || undefined;
+  appendToDailyLog(agentId, userMessage, reply, channelType);
+  postResponseMaintenance(conversationId);
+
   const sources = rag.sources.map((s) => ({ content: s.content, sourceTitle: s.sourceTitle }));
 
   const returnVal: ChatReplyResult = { reply, sources };
@@ -298,36 +282,22 @@ export async function streamReply(
 
   // Check if tools are enabled first
   const hasTools = await agentHasToolsEnabled(agentId);
-  
+
   // Get RAG context (reduced when tools enabled to save tokens)
   const ragMaxTokens = hasTools ? 1000 : 2000;
   const rag = await getRelevantContext(agentId, userMessage, ragMaxTokens);
 
-  // Build conversation history
+  // v2 Phase 5: Use contextBuilder to assemble all context
+  const ctx = await buildContext(agentId, conversationId, userMessage, { hasTools });
+
+  // Build LLM message array from context
   const history: LLMMessage[] = [];
 
-  const agentRows = (await db.select().from(agents).where(eq(agents.id, agentId)).limit(1)) as any[];
-  const agent = agentRows[0];
+  // System prompt (from contextBuilder: soul.md + context.md + session summaries + channel awareness)
+  history.push({ role: 'system', content: ctx.systemPrompt });
 
-  // v2: Build system prompt (soul.md + context.md if soulMemory enabled, else v1 static)
-  const systemInstructions = await buildSystemPrompt(agent, hasTools);
-
-  history.push({
-    role: 'system',
-    content: systemInstructions,
-  });
-
-  // Add conversation history (limit when using tools to save tokens)
-  const maxHistory = hasTools ? 4 : 20;
-  const recentMessages = (conv.messages as any[]).slice(-maxHistory);
-  for (const m of recentMessages) {
-    const role = (m.role as 'user' | 'assistant' | 'system') || 'user';
-    // Truncate long messages to save tokens
-    const content = (m.content as string).length > 1500 
-      ? (m.content as string).slice(0, 1500) + '...[truncated]'
-      : m.content as string;
-    history.push({ role, content });
-  }
+  // Session history (from contextBuilder: recent messages, already truncated)
+  history.push(...ctx.sessionHistory);
 
   // Build user message with RAG context + memory recall
   let userContent = userMessage;
@@ -335,14 +305,16 @@ export async function streamReply(
     userContent += `\n\n---\nRelevant Context from Knowledge Base:\n${rag.context}`;
   }
 
-  // v2: Memory recall — search agent memory for relevant context
-  const memoryContext = await recallMemory(agentId, userMessage);
-  if (memoryContext) {
-    userContent += memoryContext;
+  // Memory recall from contextBuilder
+  if (ctx.memoryContext) {
+    userContent += `\n\n---\n${ctx.memoryContext}`;
   }
 
   history.push({ role: 'user', content: userContent });
 
+  // Get agent model
+  const agentRows = (await db.select().from(agents).where(eq(agents.id, agentId)).limit(1)) as any[];
+  const agent = agentRows[0];
   const model =
     (agent?.defaultModel as string | null) ||
     process.env.DEFAULT_MODEL ||
@@ -400,6 +372,11 @@ export async function streamReply(
     sources: rag.sources,
     toolsUsed,
   });
+
+  // v2 Phase 5: Fire-and-forget post-response tasks
+  const channelType = (conv.conversation.channelType as string | null) || undefined;
+  appendToDailyLog(agentId, userMessage, full, channelType);
+  postResponseMaintenance(conversationId);
 
   const sources = rag.sources.map((s) => ({ content: s.content, sourceTitle: s.sourceTitle }));
 

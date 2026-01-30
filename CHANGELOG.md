@@ -1,5 +1,85 @@
 # Agent-in-a-Box v2 Changelog
 
+## 2.0.0-alpha.6 (2026-01-31)
+
+### Phase 5: Session Continuity ✅
+
+Agents maintain context across conversations — session management, context building, daily logs, and memory distillation.
+
+#### 5A: Session Management
+- Created `server/src/db/migrations/007_enhance_conversations.sql` — adds session metadata columns to `ai_conversations`:
+  - `channel_type` — tracks which channel (widget, slack, teams, webhook, cron)
+  - `channel_id` — channel-specific identifier
+  - `session_summary` — LLM-generated conversation summary
+  - `message_count` — running message counter
+  - `last_message_at` — last activity timestamp
+  - Indexes on `(agent_id, channel_type, channel_id)` and `(agent_id, last_message_at DESC)`
+- Updated `server/src/db/schema.ts` with new Drizzle column definitions on `conversations` table
+- Updated `server/src/db/init.ts` to run ALTER TABLE migrations + create indexes on startup
+- Created `server/src/session/sessionManager.ts`:
+  - `getOrCreateSession(agentId, channelType?, channelId?)` — finds active session (last message within 30 min) or creates new one
+  - `updateSessionActivity(conversationId)` — bumps message_count and last_message_at
+  - `shouldSummarize(conversationId)` — returns true if message_count > 20 and no summary yet
+  - `summarizeSession(conversationId)` — generates LLM summary of last 30 messages, stores in session_summary
+  - `getRecentSessions(agentId, limit)` — retrieves recent sessions with summaries for context building
+  - `getSession(conversationId)` — loads a single session by ID
+
+#### 5A.4 / 5D: Context Builder (Cross-Channel Context)
+- Created `server/src/session/contextBuilder.ts` — the brain of the system:
+  - `buildContext(agentId, conversationId, userMessage, options?)` returns `{ systemPrompt, memoryContext, sessionHistory, ragContext }`
+  - **System prompt**: soul.md + context.md (soulMemory=true) or v1 static instructions (soulMemory=false)
+  - **Memory recall**: semantic search across agent memory (top 5 results, similarity > 0.3 threshold)
+  - **Session history**: loads last 20 messages (or 4 when tools enabled) from current conversation
+  - **Session summaries**: includes summaries from up to 3 prior conversations as context
+  - **Cross-channel awareness**: appends "This conversation is via {channelType}." to system prompt
+  - All channels share the same memory (soul.md, memory.md, context.md) — conversation history is per-session
+  - Agent caching (1-minute TTL) to reduce DB lookups
+  - Parallel Promise.all for independent lookups (agent, system prompt, memory, history)
+
+#### 5B: Auto Daily Logs
+- Modified `server/src/chat/chatService.ts` — after each conversation turn:
+  - Auto-appends to daily log document: `daily/YYYY-MM-DD.md`
+  - Format: `### HH:MM - [channel_type]\nUser: {first 100 chars}\nAgent: {first 200 chars}\n\n`
+  - Uses `upsertDocument` with append logic (read existing, append, write back)
+  - **Fire-and-forget** — async function, never blocks the user response
+  - Only runs when `soulMemory` feature flag is enabled
+
+#### 5C: Memory Distillation
+- Created `server/src/session/memoryDistiller.ts`:
+  - `distillMemory(agentId)` — the periodic memory review process:
+    1. Reads last 3 days of daily logs (`daily/YYYY-MM-DD.md`)
+    2. Reads current `memory.md`
+    3. Sends to LLM with distillation prompt (extract learnings, update memory, remove outdated info)
+    4. Writes updated `memory.md` back
+    5. Re-embeds `memory.md` for semantic search
+  - `runDistillation(agentId)` — convenience wrapper returning a status string (for proactive engine / cron)
+  - Not auto-scheduled — admin creates a cron job for it when desired
+  - Requires `soulMemory` feature flag
+
+#### 5E: Chat Service Refactor
+- Refactored `chatService.ts` to use `contextBuilder.buildContext()`:
+  - Removed inline `buildSystemPrompt()` and `recallMemory()` functions (moved to contextBuilder)
+  - Before LLM call: `buildContext()` returns system prompt, memory context, session history
+  - After LLM response: fire-and-forget `appendToDailyLog()` + `postResponseMaintenance()`
+  - `postResponseMaintenance()` bumps session activity counters and triggers lazy summarization
+  - Both `generateReply()` and `streamReply()` updated with identical Phase 5 integration
+  - All v1 behavior preserved — context builder falls back to static instructions when soulMemory=false
+
+#### 5F: Barrel Export
+- Created `server/src/session/index.ts` — exports all session module functions and types
+
+### Design Principles
+- **contextBuilder is the single brain** — all context assembly (soul, memory, history, summaries, channel awareness) flows through one function
+- **Daily logs are fire-and-forget** — never block the user response; errors silently swallowed
+- **Memory distillation is a function, not auto-scheduled** — admin creates a cron job for it
+- **Cross-channel memory is shared; conversation history is per-session** — Slack and widget share memory.md but have separate histories
+- **Session summaries are lazy** — only generated when message_count > 20 threshold and no summary exists
+- **All features respect soulMemory flag** — soulMemory=false means v1 behavior exactly preserved
+- **No new dependencies** — uses existing LLM providers, Drizzle ORM, and memory services
+- **Clean TypeScript build** — zero compilation errors
+
+---
+
 ## 2.0.0-alpha.5 (2026-01-31)
 
 ### Phase 4: Multi-Channel Delivery ✅

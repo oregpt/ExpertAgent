@@ -427,7 +427,38 @@ async function createTablesIfNotExist(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_channels_type ON ai_agent_channels(channel_type)
   `).catch(() => {});
 
-  console.log('[db] All tables created/verified (including v2 soul & memory + proactive engine + channels)');
+  // ============================================================================
+  // v2 Phase 5: Session Continuity — Enhance Conversations Table
+  // ============================================================================
+
+  // Add session metadata columns to conversations table
+  await db.execute(sql`
+    ALTER TABLE ai_conversations ADD COLUMN IF NOT EXISTS channel_type VARCHAR(50)
+  `).catch(() => {});
+  await db.execute(sql`
+    ALTER TABLE ai_conversations ADD COLUMN IF NOT EXISTS channel_id VARCHAR(255)
+  `).catch(() => {});
+  await db.execute(sql`
+    ALTER TABLE ai_conversations ADD COLUMN IF NOT EXISTS session_summary TEXT
+  `).catch(() => {});
+  await db.execute(sql`
+    ALTER TABLE ai_conversations ADD COLUMN IF NOT EXISTS message_count INT DEFAULT 0
+  `).catch(() => {});
+  await db.execute(sql`
+    ALTER TABLE ai_conversations ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMPTZ
+  `).catch(() => {});
+
+  // Indexes for session queries
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_conversations_agent_channel
+    ON ai_conversations(agent_id, channel_type, channel_id)
+  `).catch(() => {});
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_conversations_last_message
+    ON ai_conversations(agent_id, last_message_at DESC)
+  `).catch(() => {});
+
+  console.log('[db] All tables created/verified (including v2 soul & memory + proactive engine + channels + session continuity)');
 }
 
 /**
