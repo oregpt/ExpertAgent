@@ -76,7 +76,7 @@ memoryRouter.get('/agents/:id/documents', async (req, res) => {
  * Read a specific document by key.
  * Note: The :key param uses URL encoding for keys with slashes (e.g., daily%2F2026-01-30.md)
  */
-memoryRouter.get('/agents/:id/documents/:key(*)', async (req, res) => {
+memoryRouter.get('/agents/:id/documents/:key', async (req, res) => {
   try {
     const agentId = req.params.id as string;
     const docKey = req.params.key as string;
@@ -105,7 +105,7 @@ memoryRouter.get('/agents/:id/documents/:key(*)', async (req, res) => {
  * Create or update a document
  * Body: { content: string, docType?: string }
  */
-memoryRouter.put('/agents/:id/documents/:key(*)', validate(documentUpdateSchema), async (req, res) => {
+memoryRouter.put('/agents/:id/documents/:key', validate(documentUpdateSchema), async (req, res) => {
   try {
     const agentId = req.params.id as string;
     const docKey = req.params.key as string;
@@ -137,7 +137,7 @@ memoryRouter.put('/agents/:id/documents/:key(*)', validate(documentUpdateSchema)
  * DELETE /api/agents/:id/documents/:key
  * Delete a document and its embeddings
  */
-memoryRouter.delete('/agents/:id/documents/:key(*)', async (req, res) => {
+memoryRouter.delete('/agents/:id/documents/:key', async (req, res) => {
   try {
     const agentId = req.params.id as string;
     const docKey = req.params.key as string;
