@@ -13,6 +13,7 @@ import { agentCronJobs, agentTaskRuns } from '../db/schema';
 import { eq, and, lte, sql } from 'drizzle-orm';
 import { generateReply, startConversation, appendMessage } from '../chat/chatService';
 import { getFeatures } from '../licensing/features';
+import { getAgentFeatures } from '../licensing/agentFeatures';
 
 // ============================================================================
 // Types
@@ -169,6 +170,13 @@ export async function getDueJobs(): Promise<CronJob[]> {
  * Execute a cron job: send task_text to chat service, log result, update timestamps
  */
 export async function executeJob(job: CronJob): Promise<void> {
+  // Per-agent feature check: skip if proactive is disabled for this agent
+  const agentFeatures = await getAgentFeatures(job.agentId);
+  if (!agentFeatures.proactive) {
+    console.log(`[cron] Skipping job ${job.id} — proactive disabled per-agent for ${job.agentId}`);
+    return;
+  }
+
   console.log(`[cron] Executing job ${job.id} for agent ${job.agentId}: "${job.taskText.slice(0, 80)}..."`);
 
   // Create task run audit record
@@ -215,7 +223,7 @@ export async function executeJob(job: CronJob): Promise<void> {
 
     // v2: Broadcast cron results to all enabled channels (if not heartbeat-like)
     const trimmedReply = result.reply.trim();
-    if (trimmedReply !== 'HEARTBEAT_OK' && getFeatures().multiChannel) {
+    if (trimmedReply !== 'HEARTBEAT_OK' && agentFeatures.multiChannel) {
       try {
         const { channelRouter } = await import('../channels/channelRouter');
         await channelRouter.sendToAllChannels(job.agentId, result.reply);

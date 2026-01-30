@@ -6,6 +6,7 @@ import { LLMMessage } from '../llm/types';
 import { executeWithTools } from '../llm/toolExecutor';
 import { eq, desc, and } from 'drizzle-orm';
 import { getFeatures } from '../licensing/features';
+import { getAgentFeatures } from '../licensing/agentFeatures';
 import { buildContext } from '../session/contextBuilder';
 import { updateSessionActivity, shouldSummarize, summarizeSession } from '../session/sessionManager';
 import { getDocument, upsertDocument } from '../memory/documentService';
@@ -81,8 +82,8 @@ export async function getConversationWithMessages(conversationId: number) {
  * Check if an agent has MCP Hub enabled (via capabilities)
  */
 async function agentHasToolsEnabled(agentId: string): Promise<boolean> {
-  // v2: Check if soul/memory or deep tools features are enabled — these add tools regardless of MCP caps
-  const features = getFeatures();
+  // v2: Check per-agent features — these add tools regardless of MCP caps
+  const features = await getAgentFeatures(agentId);
   if (features.soulMemory || features.deepTools) {
     return true;
   }
@@ -113,12 +114,16 @@ function appendToDailyLog(
   agentReply: string,
   channelType?: string
 ): void {
-  const features = getFeatures();
-  if (!features.soulMemory) return;
+  // Quick global gate — if globally off, skip entirely (per-agent can only be more restrictive)
+  const globalFeatures = getFeatures();
+  if (!globalFeatures.soulMemory) return;
 
   // Fire-and-forget via unhandled promise
   (async () => {
     try {
+      // Per-agent feature check
+      const features = await getAgentFeatures(agentId);
+      if (!features.soulMemory) return;
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
       const timeStr = now.toTimeString().slice(0, 5);   // HH:MM

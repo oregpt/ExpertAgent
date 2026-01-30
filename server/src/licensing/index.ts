@@ -17,6 +17,8 @@ import { validateLicenseKey } from './license';
 // Re-export for convenience
 export { getFeatures, isCapabilityAllowed, canCreateAgent } from './features';
 export type { FeatureFlags } from './features';
+export { getAgentFeatures, getAgentFeaturesDetailed, invalidateAgentFeaturesCache, V2_FEATURE_KEYS } from './agentFeatures';
+export type { AgentFeatureOverrides } from './agentFeatures';
 
 /**
  * Parse boolean from env var (handles various formats)

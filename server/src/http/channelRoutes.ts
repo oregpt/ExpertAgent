@@ -11,6 +11,7 @@
 
 import { Router, Request, Response } from 'express';
 import { getFeatures } from '../licensing/features';
+import { getAgentFeatures } from '../licensing/agentFeatures';
 import { db } from '../db/client';
 import { agentChannels } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -38,6 +39,26 @@ function requireMultiChannel(_req: Request, res: Response, next: any): void {
   next();
 }
 
+/**
+ * Middleware: check per-agent multiChannel feature flag
+ */
+async function requireMultiChannelForAgent(req: Request, res: Response, next: any): Promise<void> {
+  const agentId = req.params.id;
+  if (!agentId) {
+    return next();
+  }
+  const features = await getAgentFeatures(agentId);
+  if (!features.multiChannel) {
+    res.status(403).json({
+      error: 'Multi-channel feature disabled for this agent',
+      code: 'MULTI_CHANNEL_DISABLED_FOR_AGENT',
+      message: 'This feature is disabled for this agent. Enable it in the agent configuration.',
+    });
+    return;
+  }
+  next();
+}
+
 // ============================================================================
 // CRUD Routes — Channel Management (feature-gated)
 // ============================================================================
@@ -46,7 +67,7 @@ function requireMultiChannel(_req: Request, res: Response, next: any): void {
  * GET /api/agents/:id/channels
  * List all configured channels for an agent
  */
-channelRoutes.get('/agents/:id/channels', requireAuth, requireMultiChannel, async (req: Request, res: Response) => {
+channelRoutes.get('/agents/:id/channels', requireAuth, requireMultiChannel, requireMultiChannelForAgent, async (req: Request, res: Response) => {
   try {
     const agentId = req.params.id!;
     const rows = await db
@@ -78,7 +99,7 @@ channelRoutes.get('/agents/:id/channels', requireAuth, requireMultiChannel, asyn
  * Add a new channel configuration
  * Body: { channel_type, channel_name?, config }
  */
-channelRoutes.post('/agents/:id/channels', requireAuth, requireMultiChannel, validate(channelCreateSchema), async (req: Request, res: Response) => {
+channelRoutes.post('/agents/:id/channels', requireAuth, requireMultiChannel, requireMultiChannelForAgent, validate(channelCreateSchema), async (req: Request, res: Response) => {
   try {
     const agentId = req.params.id!;
     const { channel_type, channel_name, config } = req.body;
@@ -145,7 +166,7 @@ channelRoutes.post('/agents/:id/channels', requireAuth, requireMultiChannel, val
  * Update a channel configuration
  * Body: { channel_name?, config?, enabled? }
  */
-channelRoutes.put('/agents/:id/channels/:channelId', requireAuth, requireMultiChannel, async (req: Request, res: Response) => {
+channelRoutes.put('/agents/:id/channels/:channelId', requireAuth, requireMultiChannel, requireMultiChannelForAgent, async (req: Request, res: Response) => {
   try {
     const agentId = req.params.id!;
     const channelId = parseInt(req.params.channelId!, 10);
@@ -206,7 +227,7 @@ channelRoutes.put('/agents/:id/channels/:channelId', requireAuth, requireMultiCh
  * DELETE /api/agents/:id/channels/:channelId
  * Remove a channel configuration
  */
-channelRoutes.delete('/agents/:id/channels/:channelId', requireAuth, requireMultiChannel, async (req: Request, res: Response) => {
+channelRoutes.delete('/agents/:id/channels/:channelId', requireAuth, requireMultiChannel, requireMultiChannelForAgent, async (req: Request, res: Response) => {
   try {
     const agentId = req.params.id!;
     const channelId = parseInt(req.params.channelId!, 10);

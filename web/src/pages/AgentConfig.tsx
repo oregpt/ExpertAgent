@@ -50,6 +50,26 @@ interface AgentBranding {
   darkMode?: boolean;
 }
 
+interface AgentFeatureOverrides {
+  soulMemory?: boolean;
+  deepTools?: boolean;
+  proactive?: boolean;
+  backgroundAgents?: boolean;
+  multiChannel?: boolean;
+}
+
+interface AgentFeaturesDetailed {
+  effective: Record<string, boolean>;
+  global: {
+    soulMemory: boolean;
+    deepTools: boolean;
+    proactive: boolean;
+    backgroundAgents: boolean;
+    multiChannel: boolean;
+  };
+  agentOverrides: AgentFeatureOverrides;
+}
+
 interface Agent {
   id: string;
   slug: string;
@@ -60,6 +80,7 @@ interface Agent {
   modelMode?: 'single' | 'multi';
   allowedModels?: string[] | null;
   branding?: AgentBranding | null;
+  features?: AgentFeatureOverrides | null;
 }
 
 export interface AgentConfigProps {
@@ -100,6 +121,13 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [keyValue, setKeyValue] = useState('');
   const [savingKey, setSavingKey] = useState(false);
+
+  // Features / Capabilities
+  const [featuresExpanded, setFeaturesExpanded] = useState(false);
+  const [featuresDetailed, setFeaturesDetailed] = useState<AgentFeaturesDetailed | null>(null);
+  const [agentFeatures, setAgentFeatures] = useState<AgentFeatureOverrides>({});
+  const [savingFeatures, setSavingFeatures] = useState(false);
+  const [featuresMessage, setFeaturesMessage] = useState<string | null>(null);
 
   // Branding
   const [brandingExpanded, setBrandingExpanded] = useState(false);
@@ -152,10 +180,11 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
 
     const loadAgentConfig = async () => {
       try {
-        // Load agent config and API keys in parallel
-        const [agentRes, keysRes] = await Promise.all([
+        // Load agent config, API keys, and features in parallel
+        const [agentRes, keysRes, featuresRes] = await Promise.all([
           fetch(`${apiBaseUrl}/api/admin/agents/${selectedAgentId}`),
           fetch(`${apiBaseUrl}/api/admin/agents/${selectedAgentId}/api-keys`),
+          fetch(`${apiBaseUrl}/api/admin/agents/${selectedAgentId}/features`),
         ]);
 
         if (agentRes.ok) {
@@ -168,11 +197,17 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
           setModelMode(a.modelMode || 'single');
           setAllowedModels(a.allowedModels || []);
           setBranding(a.branding || {});
+          setAgentFeatures(a.features || {});
         }
 
         if (keysRes.ok) {
           const data = await keysRes.json();
           setPlatformSettings(data.settings || []);
+        }
+
+        if (featuresRes.ok) {
+          const data = await featuresRes.json();
+          setFeaturesDetailed(data);
         }
       } catch (e) {
         console.error(e);
@@ -322,6 +357,39 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
       grok_api_key: 'xAI Grok API Key',
     };
     return names[key] || key;
+  };
+
+  const handleSaveFeatures = async () => {
+    if (!selectedAgentId) return;
+
+    try {
+      setSavingFeatures(true);
+      setFeaturesMessage(null);
+      const res = await fetch(`${apiBaseUrl}/api/admin/agents/${selectedAgentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ features: agentFeatures }),
+      });
+      if (!res.ok) {
+        setFeaturesMessage('Failed to save features');
+        return;
+      }
+
+      // Refresh effective features
+      const featuresRes = await fetch(`${apiBaseUrl}/api/admin/agents/${selectedAgentId}/features`);
+      if (featuresRes.ok) {
+        const data = await featuresRes.json();
+        setFeaturesDetailed(data);
+      }
+
+      setFeaturesMessage('Features saved!');
+      setTimeout(() => setFeaturesMessage(null), 2000);
+    } catch (e) {
+      console.error(e);
+      setFeaturesMessage('Failed to save features');
+    } finally {
+      setSavingFeatures(false);
+    }
   };
 
   const handleSaveBranding = async () => {
@@ -751,6 +819,154 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Capabilities / Features (Collapsible) */}
+      <div
+        style={{
+          background: colors.bgCard,
+          borderRadius: 16,
+          marginTop: 24,
+          overflow: 'hidden',
+          border: `1px solid ${colors.border}`,
+          boxShadow: colors.shadow,
+        }}
+      >
+        <button
+          onClick={() => setFeaturesExpanded(!featuresExpanded)}
+          style={{
+            width: '100%',
+            padding: '16px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'transparent',
+            border: 'none',
+            color: colors.text,
+            cursor: 'pointer',
+            fontSize: 14,
+            fontWeight: 500,
+          }}
+        >
+          <span>Capabilities</span>
+          <span style={{ color: colors.textMuted, fontSize: 18 }}>
+            {featuresExpanded ? '▲' : '▼'}
+          </span>
+        </button>
+
+        {featuresExpanded && (
+          <div style={{ padding: '0 24px 24px', borderTop: `1px solid ${colors.borderLight}` }}>
+            <p style={{ color: colors.textSecondary, fontSize: 13, margin: '16px 0' }}>
+              Toggle v2 capabilities for this agent. Features disabled globally cannot be enabled per-agent.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {([
+                { key: 'soulMemory' as const, label: 'Soul & Memory', desc: 'Agent has editable personality and self-evolving memory' },
+                { key: 'deepTools' as const, label: 'Deep Tools', desc: 'Agent can search the web and fetch page content' },
+                { key: 'proactive' as const, label: 'Proactive Engine', desc: 'Agent runs heartbeats and scheduled tasks' },
+                { key: 'backgroundAgents' as const, label: 'Background Agents', desc: 'Agent can spawn sub-tasks' },
+                { key: 'multiChannel' as const, label: 'Multi-Channel', desc: 'Agent can communicate via Slack, Teams, webhooks' },
+              ]).map((feature) => {
+                const globalEnabled = featuresDetailed?.global?.[feature.key] ?? false;
+                const agentOverride = agentFeatures[feature.key];
+                // Effective: globally enabled AND (agent hasn't explicitly disabled)
+                const effectiveEnabled = globalEnabled && agentOverride !== false;
+
+                return (
+                  <div
+                    key={feature.key}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '14px 16px',
+                      borderRadius: 8,
+                      backgroundColor: colors.bgSecondary,
+                      border: `1px solid ${colors.borderLight}`,
+                      opacity: globalEnabled ? 1 : 0.6,
+                    }}
+                  >
+                    <div style={{ flex: 1, marginRight: 16 }}>
+                      <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 2, color: colors.text }}>
+                        {feature.label}
+                      </div>
+                      <div style={{ fontSize: 12, color: colors.textMuted }}>
+                        {feature.desc}
+                      </div>
+                      {!globalEnabled && (
+                        <div style={{ fontSize: 11, color: colors.warning, marginTop: 4, fontStyle: 'italic' }}>
+                          ⚠ Disabled globally — enable via license or environment variable
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ flexShrink: 0 }}>
+                      {/* Toggle switch */}
+                      <button
+                        onClick={() => {
+                          if (!globalEnabled) return; // Can't toggle if globally disabled
+                          setAgentFeatures((prev) => ({
+                            ...prev,
+                            [feature.key]: !effectiveEnabled,
+                          }));
+                        }}
+                        disabled={!globalEnabled}
+                        style={{
+                          position: 'relative',
+                          width: 44,
+                          height: 24,
+                          borderRadius: 12,
+                          border: 'none',
+                          backgroundColor: effectiveEnabled ? colors.success : (colors.bgInput || '#d1d5db'),
+                          cursor: globalEnabled ? 'pointer' : 'not-allowed',
+                          transition: 'background-color 0.2s',
+                          padding: 0,
+                        }}
+                      >
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 2,
+                            left: effectiveEnabled ? 22 : 2,
+                            width: 20,
+                            height: 20,
+                            borderRadius: 10,
+                            backgroundColor: '#fff',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                            transition: 'left 0.2s',
+                          }}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Save Button */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
+              <div style={{ fontSize: 13, color: featuresMessage?.includes('saved') ? colors.success : colors.error }}>
+                {featuresMessage || '\u00A0'}
+              </div>
+              <button
+                onClick={handleSaveFeatures}
+                disabled={savingFeatures}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  border: 'none',
+                  backgroundColor: savingFeatures ? colors.bgSecondary : colors.primary,
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: savingFeatures ? 'default' : 'pointer',
+                }}
+              >
+                {savingFeatures ? 'Saving...' : 'Save Capabilities'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Agent API Keys (Collapsible) */}

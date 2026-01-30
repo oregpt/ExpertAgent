@@ -9,6 +9,7 @@
 
 import { Router } from 'express';
 import { getFeatures } from '../licensing/features';
+import { getAgentFeatures } from '../licensing/agentFeatures';
 import {
   getHeartbeatConfig,
   upsertHeartbeatConfig,
@@ -44,7 +45,28 @@ function requireProactive(_req: any, res: any, next: any): void {
   next();
 }
 
-// Apply auth + feature guard to all routes
+/**
+ * Middleware: check per-agent proactive feature flag
+ * Applied to routes that have :id param for the agent
+ */
+async function requireProactiveForAgent(req: any, res: any, next: any): Promise<void> {
+  const agentId = req.params.id;
+  if (!agentId) {
+    return next();
+  }
+  const features = await getAgentFeatures(agentId);
+  if (!features.proactive) {
+    res.status(403).json({
+      error: 'Proactive engine disabled for this agent',
+      code: 'PROACTIVE_DISABLED_FOR_AGENT',
+      message: 'This feature is disabled for this agent. Enable it in the agent configuration.',
+    });
+    return;
+  }
+  next();
+}
+
+// Apply auth + global feature guard to all routes
 proactiveRouter.use(requireAuth);
 proactiveRouter.use(requireProactive);
 
@@ -56,7 +78,7 @@ proactiveRouter.use(requireProactive);
  * GET /api/agents/:id/heartbeat
  * Get heartbeat config for an agent
  */
-proactiveRouter.get('/agents/:id/heartbeat', async (req, res) => {
+proactiveRouter.get('/agents/:id/heartbeat', requireProactiveForAgent, async (req, res) => {
   try {
     const agentId = req.params.id;
     const config = await getHeartbeatConfig(agentId);
@@ -98,7 +120,7 @@ proactiveRouter.get('/agents/:id/heartbeat', async (req, res) => {
  * Update heartbeat config for an agent
  * Body: { enabled?, intervalMinutes?, checklist?, quietHoursStart?, quietHoursEnd?, timezone? }
  */
-proactiveRouter.put('/agents/:id/heartbeat', validate(heartbeatConfigSchema), async (req, res) => {
+proactiveRouter.put('/agents/:id/heartbeat', requireProactiveForAgent, validate(heartbeatConfigSchema), async (req, res) => {
   try {
     const agentId = req.params.id as string;
     const { enabled, intervalMinutes, checklist, quietHoursStart, quietHoursEnd, timezone } = req.body;
@@ -143,7 +165,7 @@ proactiveRouter.put('/agents/:id/heartbeat', validate(heartbeatConfigSchema), as
  * GET /api/agents/:id/cron
  * List all cron jobs for an agent
  */
-proactiveRouter.get('/agents/:id/cron', async (req, res) => {
+proactiveRouter.get('/agents/:id/cron', requireProactiveForAgent, async (req, res) => {
   try {
     const agentId = req.params.id;
     const jobs = await listJobs(agentId);
@@ -173,7 +195,7 @@ proactiveRouter.get('/agents/:id/cron', async (req, res) => {
  * Create a new cron job
  * Body: { schedule, taskText, model?, enabled? }
  */
-proactiveRouter.post('/agents/:id/cron', validate(cronJobCreateSchema), async (req, res) => {
+proactiveRouter.post('/agents/:id/cron', requireProactiveForAgent, validate(cronJobCreateSchema), async (req, res) => {
   try {
     const agentId = req.params.id as string;
     const { schedule, taskText, model, enabled } = req.body;
@@ -211,7 +233,7 @@ proactiveRouter.post('/agents/:id/cron', validate(cronJobCreateSchema), async (r
  * Update a cron job
  * Body: { schedule?, taskText?, model?, enabled? }
  */
-proactiveRouter.put('/agents/:id/cron/:jobId', async (req, res) => {
+proactiveRouter.put('/agents/:id/cron/:jobId', requireProactiveForAgent, async (req, res) => {
   try {
     const agentId = req.params.id;
     const jobId = parseInt(req.params.jobId, 10);
@@ -250,7 +272,7 @@ proactiveRouter.put('/agents/:id/cron/:jobId', async (req, res) => {
  * DELETE /api/agents/:id/cron/:jobId
  * Delete a cron job
  */
-proactiveRouter.delete('/agents/:id/cron/:jobId', async (req, res) => {
+proactiveRouter.delete('/agents/:id/cron/:jobId', requireProactiveForAgent, async (req, res) => {
   try {
     const agentId = req.params.id;
     const jobId = parseInt(req.params.jobId, 10);
@@ -276,7 +298,7 @@ proactiveRouter.delete('/agents/:id/cron/:jobId', async (req, res) => {
  * POST /api/agents/:id/cron/:jobId/run
  * Manually trigger a cron job (executes immediately regardless of schedule)
  */
-proactiveRouter.post('/agents/:id/cron/:jobId/run', async (req, res) => {
+proactiveRouter.post('/agents/:id/cron/:jobId/run', requireProactiveForAgent, async (req, res) => {
   try {
     const agentId = req.params.id;
     const jobId = parseInt(req.params.jobId, 10);
@@ -314,7 +336,7 @@ proactiveRouter.post('/agents/:id/cron/:jobId/run', async (req, res) => {
  * GET /api/agents/:id/proactive/runs
  * List recent task runs for an agent (last 50)
  */
-proactiveRouter.get('/agents/:id/proactive/runs', async (req, res) => {
+proactiveRouter.get('/agents/:id/proactive/runs', requireProactiveForAgent, async (req, res) => {
   try {
     const agentId = req.params.id;
     const limit = Math.min(parseInt(req.query.limit as string, 10) || 50, 200);

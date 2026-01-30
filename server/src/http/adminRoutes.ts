@@ -9,7 +9,8 @@ import { AVAILABLE_MODELS } from '../llm';
 import { capabilityService } from '../capabilities';
 import { getOrchestrator, getMCPServerManager } from '../mcp-hub';
 import { eq, and, isNull, sql, inArray } from 'drizzle-orm';
-import { getFeatures, canCreateAgent, getLicensingStatus } from '../licensing';
+import { getFeatures, canCreateAgent, getLicensingStatus, getAgentFeatures, getAgentFeaturesDetailed, invalidateAgentFeaturesCache, V2_FEATURE_KEYS } from '../licensing';
+import type { AgentFeatureOverrides } from '../licensing';
 import { createDefaultDocuments } from '../memory';
 import {
   getGitLabConnection,
@@ -100,13 +101,14 @@ adminRouter.get('/agents', async (_req, res) => {
 // Create a new agent
 adminRouter.post('/agents', async (req, res) => {
   try {
-    const { name, description, instructions, defaultModel, modelMode, allowedModels } = req.body as {
+    const { name, description, instructions, defaultModel, modelMode, allowedModels, features: reqFeatures } = req.body as {
       name: string;
       description?: string;
       instructions?: string;
       defaultModel?: string;
       modelMode?: 'single' | 'multi';
       allowedModels?: string[];
+      features?: AgentFeatureOverrides;
     };
 
     if (!name) {
@@ -137,6 +139,10 @@ adminRouter.post('/agents', async (req, res) => {
     // Generate unique ID
     const id = `agent-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
+    // Default features for new agents: all v2 features ON (matching global)
+    // This means new agents inherit global defaults unless overridden
+    const agentFeatures: AgentFeatureOverrides = reqFeatures || {};
+
     const inserted = (await db
       .insert(agents)
       .values({
@@ -148,12 +154,14 @@ adminRouter.post('/agents', async (req, res) => {
         defaultModel: defaultModel || process.env.CLAUDE_DEFAULT_MODEL || 'claude-sonnet-4-20250514',
         modelMode: modelMode || 'single',
         allowedModels: allowedModels || null,
+        features: agentFeatures,
       })
       .returning()) as any[];
 
     // v2: Auto-create default soul/memory/context documents if soulMemory is enabled
     const features = getFeatures();
-    if (features.soulMemory) {
+    const effectiveSoulMemory = features.soulMemory && (agentFeatures.soulMemory !== false);
+    if (effectiveSoulMemory) {
       createDefaultDocuments(id, name).catch((err) => {
         console.error(`[admin] Failed to create default documents for agent ${id}:`, err);
       });
@@ -188,7 +196,7 @@ adminRouter.get('/agents/:agentId', async (req, res) => {
 adminRouter.put('/agents/:agentId', async (req, res) => {
   try {
     const { agentId } = req.params;
-    const { name, description, instructions, defaultModel, modelMode, allowedModels, branding } = req.body as {
+    const { name, description, instructions, defaultModel, modelMode, allowedModels, branding, features: reqFeatures } = req.body as {
       name?: string;
       description?: string;
       instructions?: string;
@@ -196,6 +204,7 @@ adminRouter.put('/agents/:agentId', async (req, res) => {
       modelMode?: 'single' | 'multi';
       allowedModels?: string[] | null;
       branding?: Record<string, any> | null;
+      features?: AgentFeatureOverrides | null;
     };
 
     const patch: any = { updatedAt: new Date() };
@@ -206,6 +215,7 @@ adminRouter.put('/agents/:agentId', async (req, res) => {
     if (typeof modelMode === 'string') patch.modelMode = modelMode;
     if (allowedModels !== undefined) patch.allowedModels = allowedModels;
     if (branding !== undefined) patch.branding = branding;
+    if (reqFeatures !== undefined) patch.features = reqFeatures;
 
     const rows = (await db
       .update(agents)
@@ -218,10 +228,27 @@ adminRouter.put('/agents/:agentId', async (req, res) => {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
+    // Invalidate per-agent features cache if features were updated
+    if (reqFeatures !== undefined) {
+      invalidateAgentFeaturesCache(agentId);
+    }
+
     res.json({ agent });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update agent' });
+  }
+});
+
+// Get effective features for an agent (resolved against global)
+adminRouter.get('/agents/:agentId/features', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const detailed = await getAgentFeaturesDetailed(agentId);
+    res.json(detailed);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get agent features' });
   }
 });
 

@@ -20,6 +20,7 @@ import { db } from '../db/client';
 import { agents, messages, conversations } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { getFeatures } from '../licensing/features';
+import { getAgentFeatures } from '../licensing/agentFeatures';
 import { getDocument, searchMemory } from '../memory';
 import { getRecentSessions, getSession } from './sessionManager';
 import { LLMMessage } from '../llm/types';
@@ -64,7 +65,7 @@ export async function buildContext(
   userMessage: string,
   options: BuildContextOptions = {}
 ): Promise<BuiltContext> {
-  const features = getFeatures();
+  const features = await getAgentFeatures(agentId);
   const hasTools = options.hasTools ?? false;
   const maxHistory = options.maxHistory ?? (hasTools ? 4 : 20);
   const memoryTopK = options.memoryTopK ?? 5;
@@ -113,7 +114,7 @@ export async function buildContext(
  * soulMemory=false → v1 static instructions field
  */
 async function buildSystemPrompt(agentId: string, hasTools: boolean): Promise<string> {
-  const features = getFeatures();
+  const features = await getAgentFeatures(agentId);
 
   let systemInstructions: string;
 

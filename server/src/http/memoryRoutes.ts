@@ -9,6 +9,7 @@
 
 import { Router } from 'express';
 import { getFeatures } from '../licensing/features';
+import { getAgentFeatures } from '../licensing/agentFeatures';
 import {
   getDocument,
   upsertDocument,
@@ -22,9 +23,9 @@ import { validate, documentUpdateSchema, memorySearchSchema } from '../middlewar
 export const memoryRouter = Router();
 
 /**
- * Middleware: check soulMemory feature flag
+ * Middleware: check soulMemory feature flag (global gate)
  */
-function requireSoulMemory(req: any, res: any, next: any): void {
+function requireSoulMemoryGlobal(req: any, res: any, next: any): void {
   const features = getFeatures();
   if (!features.soulMemory) {
     res.status(403).json({
@@ -37,9 +38,31 @@ function requireSoulMemory(req: any, res: any, next: any): void {
   next();
 }
 
-// Apply auth + feature guard to all routes
+/**
+ * Middleware: check per-agent soulMemory feature flag
+ * Must be applied to routes that have :id param for the agent
+ */
+async function requireSoulMemoryForAgent(req: any, res: any, next: any): Promise<void> {
+  const agentId = req.params.id;
+  if (!agentId) {
+    return next();
+  }
+  const features = await getAgentFeatures(agentId);
+  if (!features.soulMemory) {
+    res.status(403).json({
+      error: 'Soul & Memory feature disabled for this agent',
+      code: 'SOUL_MEMORY_DISABLED_FOR_AGENT',
+      message: 'This feature is disabled for this agent. Enable it in the agent configuration.',
+    });
+    return;
+  }
+  next();
+}
+
+// Apply auth + global feature guard to all routes
 memoryRouter.use(requireAuth);
-memoryRouter.use(requireSoulMemory);
+memoryRouter.use(requireSoulMemoryGlobal);
+// Per-agent check is applied per-route (routes that have :id)
 
 // ============================================================================
 // Document CRUD
@@ -49,7 +72,7 @@ memoryRouter.use(requireSoulMemory);
  * GET /api/agents/:id/documents
  * List all documents for an agent, optionally filtered by doc_type
  */
-memoryRouter.get('/agents/:id/documents', async (req, res) => {
+memoryRouter.get('/agents/:id/documents', requireSoulMemoryForAgent, async (req, res) => {
   try {
     const agentId = req.params.id;
     const docType = req.query.type as string | undefined;
@@ -76,7 +99,7 @@ memoryRouter.get('/agents/:id/documents', async (req, res) => {
  * Read a specific document by key.
  * Note: The :key param uses URL encoding for keys with slashes (e.g., daily%2F2026-01-30.md)
  */
-memoryRouter.get('/agents/:id/documents/:key', async (req, res) => {
+memoryRouter.get('/agents/:id/documents/:key', requireSoulMemoryForAgent, async (req, res) => {
   try {
     const agentId = req.params.id as string;
     const docKey = req.params.key as string;
@@ -105,7 +128,7 @@ memoryRouter.get('/agents/:id/documents/:key', async (req, res) => {
  * Create or update a document
  * Body: { content: string, docType?: string }
  */
-memoryRouter.put('/agents/:id/documents/:key', validate(documentUpdateSchema), async (req, res) => {
+memoryRouter.put('/agents/:id/documents/:key', requireSoulMemoryForAgent, validate(documentUpdateSchema), async (req, res) => {
   try {
     const agentId = req.params.id as string;
     const docKey = req.params.key as string;
@@ -137,7 +160,7 @@ memoryRouter.put('/agents/:id/documents/:key', validate(documentUpdateSchema), a
  * DELETE /api/agents/:id/documents/:key
  * Delete a document and its embeddings
  */
-memoryRouter.delete('/agents/:id/documents/:key', async (req, res) => {
+memoryRouter.delete('/agents/:id/documents/:key', requireSoulMemoryForAgent, async (req, res) => {
   try {
     const agentId = req.params.id as string;
     const docKey = req.params.key as string;
@@ -163,7 +186,7 @@ memoryRouter.delete('/agents/:id/documents/:key', async (req, res) => {
  * Semantic search across agent memory documents
  * Body: { query: string, topK?: number }
  */
-memoryRouter.post('/agents/:id/memory/search', validate(memorySearchSchema), async (req, res) => {
+memoryRouter.post('/agents/:id/memory/search', requireSoulMemoryForAgent, validate(memorySearchSchema), async (req, res) => {
   try {
     const agentId = req.params.id as string;
     const { query, topK } = req.body as { query: string; topK?: number };

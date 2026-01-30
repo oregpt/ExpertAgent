@@ -34,6 +34,9 @@ async function createTablesIfNotExist(): Promise<void> {
   await db.execute(sql`
     ALTER TABLE ai_capabilities ADD COLUMN IF NOT EXISTS category VARCHAR(64)
   `).catch(() => {});
+  await db.execute(sql`
+    ALTER TABLE ai_agents ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '{}'
+  `).catch(() => {});
 
   // Documents table
   await db.execute(sql`

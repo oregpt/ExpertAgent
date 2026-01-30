@@ -13,6 +13,7 @@ import { getProviderForModel } from './index';
 import { getOrchestrator } from '../mcp-hub';
 import { getMCPServerManager } from '../mcp-hub/mcp-server-manager';
 import { getFeatures } from '../licensing/features';
+import { getAgentFeatures } from '../licensing/agentFeatures';
 import { MEMORY_TOOLS, isMemoryTool, executeMemoryTool } from '../memory/memoryTools';
 import { DEEP_TOOLS, isDeepTool, executeDeepTool } from '../tools/deepTools';
 
@@ -163,14 +164,14 @@ export async function getDetailedToolsForAgent(agentId: string): Promise<Tool[]>
     });
   }
 
-  // v2: Add memory tools if soulMemory feature is enabled
-  const features = getFeatures();
+  // v2: Add memory tools if soulMemory feature is enabled (per-agent)
+  const features = await getAgentFeatures(agentId);
   if (features.soulMemory) {
     tools.push(...MEMORY_TOOLS);
     console.log('[tool-executor] Added memory tools:', MEMORY_TOOLS.map(t => t.name).join(', '));
   }
 
-  // v2: Add deep tools if deepTools feature is enabled
+  // v2: Add deep tools if deepTools feature is enabled (per-agent)
   if (features.deepTools) {
     tools.push(...DEEP_TOOLS);
     console.log('[tool-executor] Added deep tools:', DEEP_TOOLS.map(t => t.name).join(', '));

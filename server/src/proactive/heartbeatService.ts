@@ -11,6 +11,7 @@ import { agentHeartbeatConfig, agentTaskRuns } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { generateReply, startConversation, appendMessage } from '../chat/chatService';
 import { getFeatures } from '../licensing/features';
+import { getAgentFeatures } from '../licensing/agentFeatures';
 
 // ============================================================================
 // Types
@@ -179,6 +180,13 @@ export async function getAllEnabledConfigs(): Promise<HeartbeatConfig[]> {
  * Builds the heartbeat prompt from the checklist, sends to chat service, logs the result.
  */
 export async function executeHeartbeat(agentId: string): Promise<void> {
+  // Per-agent feature check: skip if proactive is disabled for this agent
+  const agentFeatures = await getAgentFeatures(agentId);
+  if (!agentFeatures.proactive) {
+    console.log(`[heartbeat] Skipping agent ${agentId} — proactive disabled per-agent`);
+    return;
+  }
+
   const config = await getConfig(agentId);
   if (!config) {
     console.warn(`[heartbeat] No config found for agent ${agentId}`);
@@ -232,7 +240,7 @@ export async function executeHeartbeat(agentId: string): Promise<void> {
 
     // v2: If the result is NOT "HEARTBEAT_OK", broadcast to all enabled channels
     const trimmedReply = result.reply.trim();
-    if (trimmedReply !== 'HEARTBEAT_OK' && getFeatures().multiChannel) {
+    if (trimmedReply !== 'HEARTBEAT_OK' && agentFeatures.multiChannel) {
       try {
         const { channelRouter } = await import('../channels/channelRouter');
         await channelRouter.sendToAllChannels(agentId, result.reply);
