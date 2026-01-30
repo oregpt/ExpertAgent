@@ -1,5 +1,49 @@
 # Agent-in-a-Box v2 Changelog
 
+## 2.0.0-alpha.9 (2026-02-01)
+
+### Per-Agent v2 Feature Configuration ✅
+
+v2 capabilities (soulMemory, deepTools, proactive, backgroundAgents, multiChannel) are now configurable per agent via the admin UI. Global flags remain the ceiling — per-agent toggles can only disable, never exceed global.
+
+#### Database
+- **Migration 008**: Adds `features` JSONB column to `ai_agents` table
+- Schema updated with `features` column; `init.ts` runs migration on startup
+- Default `{}` — agents without overrides inherit global defaults
+
+#### New Module: `agentFeatures.ts`
+- `getAgentFeatures(agentId)` — resolves effective features (global AND agent overrides)
+- `getAgentFeaturesDetailed(agentId)` — returns effective, global, and override data for admin UI
+- `invalidateAgentFeaturesCache(agentId)` — clears 30s cache on update
+- Exported from `licensing/index.ts`
+
+#### Backend Integration (13 files)
+- `chatService.ts` — `agentHasToolsEnabled()` and `appendToDailyLog()` use per-agent features
+- `toolExecutor.ts` — `getDetailedToolsForAgent()` uses per-agent for memory/deep tool injection
+- `contextBuilder.ts` — `buildContext()` and `buildSystemPrompt()` use per-agent features
+- `heartbeatService.ts` — `executeHeartbeat()` checks per-agent proactive flag before running
+- `cronService.ts` — `executeJob()` checks per-agent proactive flag before running
+- `memoryRoutes.ts` — per-agent `requireSoulMemoryForAgent` middleware on all routes
+- `proactiveRoutes.ts` — per-agent `requireProactiveForAgent` middleware on all routes
+- `channelRoutes.ts` — per-agent `requireMultiChannelForAgent` middleware on CRUD routes
+- `adminRoutes.ts` — accepts `features` in agent create/update; new `GET /api/admin/agents/:id/features` endpoint
+
+#### Admin UI
+- New collapsible **Capabilities** section in Agent Configuration page
+- Toggle switches for each v2 feature: Soul & Memory, Deep Tools, Proactive Engine, Background Agents, Multi-Channel
+- Globally disabled features appear grayed out with "Disabled globally" warning
+- Fetches effective features from `GET /api/admin/agents/:id/features`
+- Saves via existing `PUT /api/admin/agents/:agentId` endpoint
+
+#### Design Principles
+1. Global flags = ceiling — per-agent can only disable, not exceed
+2. New agents default to all v2 features ON (matching global)
+3. Backward compatible — existing agents without features column get global defaults
+4. Route guards enforce per-agent features with 403 responses
+5. 30-second cache with explicit invalidation on update
+
+---
+
 ## 2.0.0-alpha.8 (2026-01-31)
 
 ### Phase 6: Security & Hardening ✅
