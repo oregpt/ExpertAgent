@@ -410,7 +410,7 @@ export class MCPServerManager {
       const defaultAgentId = 'default-agent';
 
       // Single-token servers (API key only)
-      const singleTokenCaps = ['mcp-ccview', 'mcp-ccexplorer-pro', 'slack', 'notion', 'bitwave-price', 'wallet-balance', 'kaiko', 'thetie-canton', 'gamma', 'faam-tracker', 'trader'];
+      const singleTokenCaps = ['mcp-ccview', 'mcp-ccexplorer-pro', 'slack', 'notion', 'bitwave-price', 'kaiko', 'thetie-canton', 'gamma', 'faam-tracker', 'trader'];
       for (const capId of singleTokenCaps) {
         const tokens = await capabilityService.getCapabilityTokens(defaultAgentId, capId);
         if (tokens?.token1) {
@@ -418,8 +418,8 @@ export class MCPServerManager {
         }
       }
 
-      // Multi-token servers (OAuth2 or dual-key auth)
-      const multiTokenCaps = ['quickbooks', 'calendar', 'sheets', 'email', 'binanceus', 'kraken', 'coinbase', 'google-docs', 'plaid', 'chatscraper'];
+      // Multi-token servers (OAuth2, dual-key auth, or multiple API keys)
+      const multiTokenCaps = ['quickbooks', 'calendar', 'sheets', 'email', 'binanceus', 'kraken', 'coinbase', 'google-docs', 'plaid', 'chatscraper', 'wallet-balance'];
       for (const capId of multiTokenCaps) {
         const tokens = await capabilityService.getCapabilityTokens(defaultAgentId, capId);
         if (tokens?.token1) {
@@ -492,8 +492,10 @@ export class MCPServerManager {
         console.log(`[mcp-manager] Configured API key for bitwave-price server`);
         break;
       case 'wallet-balance':
+        // wallet-balance now uses multi-token config (etherscan_v2, blockfrost_cardano, ftmscan)
+        // For single-key legacy support, pass to setApiKey
         walletBalanceServer.setApiKey(apiKey);
-        console.log(`[mcp-manager] Configured API key for wallet-balance server`);
+        console.log(`[mcp-manager] Configured single API key for wallet-balance server (legacy)`);
         break;
       case 'kaiko':
         kaikoServer.setApiKey(apiKey);
@@ -564,6 +566,10 @@ export class MCPServerManager {
       case 'chatscraper':
         chatScraperServer.setTokens(tokens);
         console.log(`[mcp-manager] Configured tokens for chatscraper server`);
+        break;
+      case 'wallet-balance':
+        walletBalanceServer.setTokens(tokens);
+        console.log(`[mcp-manager] Configured API keys for wallet-balance server`);
         break;
       default:
         console.warn(`[mcp-manager] Unknown multi-token server: ${serverId}`);

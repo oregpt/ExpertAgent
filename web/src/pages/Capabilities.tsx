@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAdminTheme } from '../AdminThemeContext';
+import { GoogleOAuthConnect } from '../components/GoogleOAuthConnect';
+import { QBOAuthConnect } from '../components/QBOAuthConnect';
 
 interface Capability {
   id: string;
@@ -16,6 +18,23 @@ interface Capability {
 interface CapabilitiesProps {
   apiBaseUrl: string;
 }
+
+// Helper functions to identify OAuth capabilities
+const isGoogleCapability = (capabilityId: string): boolean => {
+  const googleCapabilities = [
+    'calendar',      // Google Calendar
+    'sheets',        // Google Sheets
+    'google-docs',   // Google Docs
+    'email',         // Gmail
+    'google-drive',  // Google Drive (if exists)
+  ];
+  return googleCapabilities.includes(capabilityId);
+};
+
+const isQBOCapability = (capabilityId: string): boolean => {
+  const qboCapabilities = ['quickbooks'];
+  return qboCapabilities.includes(capabilityId);
+};
 
 export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
   const { colors } = useAdminTheme();
@@ -169,7 +188,7 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, color: colors.text }}>Capabilities</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, color: colors.text }}>MCP Hub</h1>
       <p style={{ color: colors.textSecondary, marginBottom: 24, fontSize: 14 }}>
         Enable integrations and configure API credentials per agent. Each agent can have different capabilities enabled.
       </p>
@@ -300,8 +319,57 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
                   {cap.description}
                 </p>
 
-                {/* Credential Status */}
-                {cap.config?.requiresAuth && (
+                {/* OAuth Connectors for Google and QuickBooks */}
+                {isGoogleCapability(cap.id) && (
+                  <div style={{ marginTop: 8 }}>
+                    <GoogleOAuthConnect
+                      apiBaseUrl={apiBaseUrl}
+                      agentId={selectedAgentId}
+                      capabilityId={cap.id}
+                      onConnectionChange={(connected) => {
+                        if (connected !== cap.hasTokens) {
+                          loadCapabilities();
+                        }
+                      }}
+                      colors={{
+                        text: colors.text,
+                        textSecondary: colors.textSecondary,
+                        primary: colors.primary,
+                        success: colors.success,
+                        error: colors.error,
+                        border: colors.border,
+                        bgSecondary: colors.bgSecondary,
+                      }}
+                    />
+                  </div>
+                )}
+
+                {isQBOCapability(cap.id) && (
+                  <div style={{ marginTop: 8 }}>
+                    <QBOAuthConnect
+                      apiBaseUrl={apiBaseUrl}
+                      agentId={selectedAgentId}
+                      capabilityId={cap.id}
+                      onConnectionChange={(connected) => {
+                        if (connected !== cap.hasTokens) {
+                          loadCapabilities();
+                        }
+                      }}
+                      colors={{
+                        text: colors.text,
+                        textSecondary: colors.textSecondary,
+                        primary: colors.primary,
+                        success: colors.success,
+                        error: colors.error,
+                        border: colors.border,
+                        bgSecondary: colors.bgSecondary,
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Credential Status (for non-OAuth capabilities) */}
+                {cap.config?.requiresAuth && !isGoogleCapability(cap.id) && !isQBOCapability(cap.id) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {cap.hasTokens ? (
                       <>
@@ -428,41 +496,35 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
             <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, color: colors.text }}>
               Configure {selectedCap.name}
             </h3>
-            <p style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 20 }}>
-              Enter your credentials. They will be encrypted before storage.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* Dynamic token fields based on capability config */}
-              {(selectedCap?.config?.tokenFields || [{ name: 'token1', label: 'API Key', required: true }]).map((field: { name: string; label: string; required?: boolean }) => (
-                <div key={field.name}>
-                  <label style={{ fontSize: 13, color: colors.textSecondary, display: 'block', marginBottom: 6 }}>
-                    {field.label}{!field.required && ' (optional)'}
-                  </label>
-                  <input
-                    type="password"
-                    value={tokenValues[field.name] || ''}
-                    onChange={(e) => setTokenValues({ ...tokenValues, [field.name]: e.target.value })}
-                    placeholder={`Enter ${field.label.toLowerCase()}...`}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: 8,
-                      border: `1px solid ${colors.border}`,
-                      background: colors.bgInput,
-                      color: colors.text,
-                      fontSize: 14,
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              ))}
-
-              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+            {/* Show OAuth connect for Google/QBO, manual form for others */}
+            {isGoogleCapability(selectedCap.id) ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <p style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 8 }}>
+                  Connect your Google account to enable this capability.
+                </p>
+                <GoogleOAuthConnect
+                  apiBaseUrl={apiBaseUrl}
+                  agentId={selectedAgentId}
+                  capabilityId={selectedCap.id}
+                  onConnectionChange={(connected) => {
+                    if (connected) {
+                      setTokenModal(false);
+                      loadCapabilities();
+                    }
+                  }}
+                  colors={{
+                    text: colors.text,
+                    textSecondary: colors.textSecondary,
+                    primary: colors.primary,
+                    success: colors.success,
+                    error: colors.error,
+                    border: colors.border,
+                    bgSecondary: colors.bgSecondary,
+                  }}
+                />
                 <button
                   onClick={() => setTokenModal(false)}
                   style={{
-                    flex: 1,
                     padding: '10px 16px',
                     borderRadius: 8,
                     border: `1px solid ${colors.border}`,
@@ -470,29 +532,122 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
                     color: colors.textSecondary,
                     fontSize: 14,
                     cursor: 'pointer',
+                    marginTop: 8,
                   }}
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveTokens}
-                  disabled={saving || (selectedCap?.config?.tokenFields?.some((f: { required?: boolean }) => f.required) && !tokenValues.token1)}
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: saving ? colors.primaryLight : colors.primary,
-                    color: '#fff',
-                    fontSize: 14,
-                    fontWeight: 500,
-                    cursor: saving ? 'default' : 'pointer',
-                  }}
-                >
-                  {saving ? 'Saving...' : 'Save Credentials'}
+                  Close
                 </button>
               </div>
-            </div>
+            ) : isQBOCapability(selectedCap.id) ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <p style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 8 }}>
+                  Connect your QuickBooks account to enable this capability.
+                </p>
+                <QBOAuthConnect
+                  apiBaseUrl={apiBaseUrl}
+                  agentId={selectedAgentId}
+                  capabilityId={selectedCap.id}
+                  onConnectionChange={(connected) => {
+                    if (connected) {
+                      setTokenModal(false);
+                      loadCapabilities();
+                    }
+                  }}
+                  colors={{
+                    text: colors.text,
+                    textSecondary: colors.textSecondary,
+                    primary: '#2CA01C',
+                    success: colors.success,
+                    error: colors.error,
+                    border: colors.border,
+                    bgSecondary: colors.bgSecondary,
+                  }}
+                />
+                <button
+                  onClick={() => setTokenModal(false)}
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: 8,
+                    border: `1px solid ${colors.border}`,
+                    background: 'transparent',
+                    color: colors.textSecondary,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    marginTop: 8,
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <>
+                <p style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 20 }}>
+                  Enter your credentials. They will be encrypted before storage.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Dynamic token fields based on capability config */}
+                  {(selectedCap?.config?.tokenFields || [{ name: 'token1', label: 'API Key', required: true }]).map((field: { name: string; label: string; required?: boolean }) => (
+                    <div key={field.name}>
+                      <label style={{ fontSize: 13, color: colors.textSecondary, display: 'block', marginBottom: 6 }}>
+                        {field.label}{!field.required && ' (optional)'}
+                      </label>
+                      <input
+                        type="password"
+                        value={tokenValues[field.name] || ''}
+                        onChange={(e) => setTokenValues({ ...tokenValues, [field.name]: e.target.value })}
+                        placeholder={`Enter ${field.label.toLowerCase()}...`}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderRadius: 8,
+                          border: `1px solid ${colors.border}`,
+                          background: colors.bgInput,
+                          color: colors.text,
+                          fontSize: 14,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  ))}
+
+                  <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                    <button
+                      onClick={() => setTokenModal(false)}
+                      style={{
+                        flex: 1,
+                        padding: '10px 16px',
+                        borderRadius: 8,
+                        border: `1px solid ${colors.border}`,
+                        background: 'transparent',
+                        color: colors.textSecondary,
+                        fontSize: 14,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveTokens}
+                      disabled={saving || (selectedCap?.config?.tokenFields?.some((f: { required?: boolean }) => f.required) && !tokenValues.token1)}
+                      style={{
+                        flex: 1,
+                        padding: '10px 16px',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: saving ? colors.primaryLight : colors.primary,
+                        color: '#fff',
+                        fontSize: 14,
+                        fontWeight: 500,
+                        cursor: saving ? 'default' : 'pointer',
+                      }}
+                    >
+                      {saving ? 'Saving...' : 'Save Credentials'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

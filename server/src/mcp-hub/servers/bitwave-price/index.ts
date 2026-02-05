@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { MCPServerInstance, MCPTool, MCPResponse } from '../../types';
 
-const BASE_URL = 'https://bitwave-price-service-794628893589.us-central1.run.app';
+const BASE_URL = 'https://price-svc-utyjy373hq-uc.a.run.app';
 
 interface ToolDefinition {
   name: string;
@@ -95,8 +95,13 @@ export class BitwavePriceMCPServer implements MCPServerInstance {
           return { success: true, data: { asset, price: data.price, currency, timestamp: data.timestamp || new Date().toISOString() } };
         }
         case 'list_supported_assets': {
-          const data = await this.request('/assets');
-          return { success: true, data: { count: data.assets?.length || 0, assets: data.assets || [] } };
+          // Hardcoded list - matches agenticledger-prod (no /assets endpoint)
+          const supportedAssets = [
+            'BTC', 'ETH', 'SOL', 'USDT', 'USDC', 'BNB', 'XRP', 'ADA', 'DOGE', 'MATIC',
+            'DOT', 'AVAX', 'LINK', 'UNI', 'ATOM', 'LTC', 'BCH', 'FIL', 'APT', 'SUI',
+            'NEAR', 'ARB', 'OP', 'AAVE', 'MKR', 'SNX', 'CRV', 'LDO', 'RUNE', 'FTM'
+          ];
+          return { success: true, data: { supportedAssets, service: 'cryptocompare', totalAssets: supportedAssets.length } };
         }
         case 'get_batch_prices': {
           const assets = args.assets as string[];

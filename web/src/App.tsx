@@ -2,12 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Route, Switch, Link, useLocation } from 'wouter';
 import { AgentChatWidget } from './AgentChatWidget';
 import { KnowledgeBaseManager } from './KnowledgeBaseManager';
-import { AgentConfig } from './pages/AgentConfig';
 import { Capabilities } from './pages/Capabilities';
+import { Configuration } from './pages/Configuration';
 import { Tools } from './pages/Tools';
-import { SoulMemory } from './pages/SoulMemory';
-import { Heartbeat } from './pages/Heartbeat';
-import { CronJobs } from './pages/CronJobs';
 import { AgentTheme, defaultTheme } from './theme';
 import { AdminThemeProvider, useAdminTheme, ThemeToggle } from './AdminThemeContext';
 
@@ -98,11 +95,8 @@ const AppContent: React.FC = () => {
         <nav style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <NavLink href="/chat">Chat</NavLink>
           <NavLink href="/knowledge">Knowledge Base</NavLink>
-          <NavLink href="/capabilities">Capabilities</NavLink>
+          <NavLink href="/mcp-hub">MCP Hub</NavLink>
           <NavLink href="/config">Configuration</NavLink>
-          <NavLink href="/soul">Soul & Memory</NavLink>
-          <NavLink href="/heartbeat">Heartbeat</NavLink>
-          <NavLink href="/cron">Cron Jobs</NavLink>
           <NavLink href="/tools">Tools</NavLink>
           <div style={{ marginLeft: 8 }}>
             <ThemeToggle />
@@ -119,20 +113,23 @@ const AppContent: React.FC = () => {
           <Route path="/knowledge">
             <KnowledgePage apiBaseUrl={apiBaseUrl} theme={theme} />
           </Route>
+          <Route path="/mcp-hub">
+            <Capabilities apiBaseUrl={apiBaseUrl} />
+          </Route>
           <Route path="/capabilities">
             <Capabilities apiBaseUrl={apiBaseUrl} />
           </Route>
           <Route path="/config">
-            <AgentConfig apiBaseUrl={apiBaseUrl} />
+            <Configuration apiBaseUrl={apiBaseUrl} />
           </Route>
-          <Route path="/soul">
-            <SoulMemory apiBaseUrl={apiBaseUrl} />
+          <Route path="/config/soul">
+            <Configuration apiBaseUrl={apiBaseUrl} initialTab="soul" />
           </Route>
-          <Route path="/heartbeat">
-            <Heartbeat apiBaseUrl={apiBaseUrl} />
+          <Route path="/config/heartbeat">
+            <Configuration apiBaseUrl={apiBaseUrl} initialTab="heartbeat" />
           </Route>
-          <Route path="/cron">
-            <CronJobs apiBaseUrl={apiBaseUrl} />
+          <Route path="/config/cron">
+            <Configuration apiBaseUrl={apiBaseUrl} initialTab="cron" />
           </Route>
           <Route path="/tools">
             <Tools apiBaseUrl={apiBaseUrl} />
@@ -462,7 +459,7 @@ const HomePage: React.FC = () => {
             </div>
           </div>
         </Link>
-        <Link href="/capabilities" style={{ textDecoration: 'none' }}>
+        <Link href="/mcp-hub" style={{ textDecoration: 'none' }}>
           <div
             style={{
               background: colors.bgCard,
@@ -474,7 +471,7 @@ const HomePage: React.FC = () => {
             }}
           >
             <div style={{ fontSize: 18, fontWeight: 600, color: colors.text, marginBottom: 4 }}>
-              Manage Capabilities
+              MCP Hub
             </div>
             <div style={{ color: colors.textSecondary, fontSize: 14 }}>
               Enable integrations and configure API credentials
@@ -493,67 +490,10 @@ const HomePage: React.FC = () => {
             }}
           >
             <div style={{ fontSize: 18, fontWeight: 600, color: colors.text, marginBottom: 4 }}>
-              Configure Agent
+              Configuration
             </div>
             <div style={{ color: colors.textSecondary, fontSize: 14 }}>
-              Customize name, instructions, and AI model
-            </div>
-          </div>
-        </Link>
-        <Link href="/soul" style={{ textDecoration: 'none' }}>
-          <div
-            style={{
-              background: colors.bgCard,
-              padding: 20,
-              borderRadius: 12,
-              cursor: 'pointer',
-              border: `1px solid ${colors.border}`,
-              boxShadow: colors.shadow,
-            }}
-          >
-            <div style={{ fontSize: 18, fontWeight: 600, color: colors.text, marginBottom: 4 }}>
-              Soul & Memory
-            </div>
-            <div style={{ color: colors.textSecondary, fontSize: 14 }}>
-              Edit personality, long-term memory, and context documents
-            </div>
-          </div>
-        </Link>
-        <Link href="/heartbeat" style={{ textDecoration: 'none' }}>
-          <div
-            style={{
-              background: colors.bgCard,
-              padding: 20,
-              borderRadius: 12,
-              cursor: 'pointer',
-              border: `1px solid ${colors.border}`,
-              boxShadow: colors.shadow,
-            }}
-          >
-            <div style={{ fontSize: 18, fontWeight: 600, color: colors.text, marginBottom: 4 }}>
-              Heartbeat
-            </div>
-            <div style={{ color: colors.textSecondary, fontSize: 14 }}>
-              Configure periodic check-ins and proactive behavior
-            </div>
-          </div>
-        </Link>
-        <Link href="/cron" style={{ textDecoration: 'none' }}>
-          <div
-            style={{
-              background: colors.bgCard,
-              padding: 20,
-              borderRadius: 12,
-              cursor: 'pointer',
-              border: `1px solid ${colors.border}`,
-              boxShadow: colors.shadow,
-            }}
-          >
-            <div style={{ fontSize: 18, fontWeight: 600, color: colors.text, marginBottom: 4 }}>
-              Cron Jobs
-            </div>
-            <div style={{ color: colors.textSecondary, fontSize: 14 }}>
-              Schedule recurring tasks, reports, and automations
+              Agent settings, soul & memory, heartbeat, and cron jobs
             </div>
           </div>
         </Link>

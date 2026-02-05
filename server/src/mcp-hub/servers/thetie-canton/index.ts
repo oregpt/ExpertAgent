@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { MCPServerInstance, MCPTool, MCPResponse } from '../../types';
 
-const BASE_URL = 'https://api.thetie.io/canton';
+const BASE_URL = 'https://api-thetie.io';
 
 interface ToolDefinition {
   name: string;
@@ -96,7 +96,7 @@ export class TheTieCantonMCPServer implements MCPServerInstance {
 
   private async request(endpoint: string): Promise<any> {
     const headers: Record<string, string> = { 'Accept': 'application/json' };
-    if (this.apiKey) headers['Authorization'] = `Bearer ${this.apiKey}`;
+    if (this.apiKey) headers['x-api-key'] = this.apiKey;
     const res = await fetch(`${BASE_URL}${endpoint}`, { headers });
     if (!res.ok) throw new Error(`TheTie API error ${res.status}`);
     return res.json();
@@ -104,39 +104,41 @@ export class TheTieCantonMCPServer implements MCPServerInstance {
 
   async executeTool(name: string, args: Record<string, unknown>): Promise<MCPResponse> {
     try {
+      // All endpoints use /v3/integrations/canton/ prefix
+      const prefix = '/v3/integrations/canton';
       switch (name) {
         case 'get_cumulative_metrics': {
-          const data = await this.request('/cumulative-metrics');
+          const data = await this.request(`${prefix}/cumulative-metrics`);
           return { success: true, data };
         }
         case 'get_highlight_metrics': {
-          const data = await this.request('/highlight-metrics');
+          const data = await this.request(`${prefix}/highlight-metrics`);
           return { success: true, data };
         }
         case 'get_validator_leaderboard': {
           const limit = Number(args.limit) || 20;
-          const data = await this.request(`/validator-leaderboard?limit=${limit}`);
+          const data = await this.request(`${prefix}/validator-leaderboard?limit=${limit}`);
           return { success: true, data };
         }
         case 'get_cumulative_validators': {
-          const data = await this.request('/cumulative-validators');
+          const data = await this.request(`${prefix}/cumulative-validators`);
           return { success: true, data };
         }
         case 'get_holder_leaderboard': {
           const limit = Number(args.limit) || 20;
-          const data = await this.request(`/holder-leaderboard?limit=${limit}`);
+          const data = await this.request(`${prefix}/holder-leaderboard?limit=${limit}`);
           return { success: true, data };
         }
         case 'get_reward_leaderboard': {
-          const data = await this.request('/reward-leaderboard');
+          const data = await this.request(`${prefix}/reward-leaderboard`);
           return { success: true, data };
         }
         case 'get_daily_active_users': {
-          const data = await this.request('/daily-active-users');
+          const data = await this.request(`${prefix}/daily-active-users`);
           return { success: true, data };
         }
         case 'get_transaction_count': {
-          const data = await this.request('/transaction-count');
+          const data = await this.request(`${prefix}/transaction-count`);
           return { success: true, data };
         }
         default: return { success: false, error: `Unknown tool: ${name}` };

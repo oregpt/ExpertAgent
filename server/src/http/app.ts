@@ -10,6 +10,7 @@ import { adminRouter } from './adminRoutes';
 import { memoryRouter } from './memoryRoutes';
 import { proactiveRouter } from './proactiveRoutes';
 import { channelRoutes } from './channelRoutes';
+import { oauthRouter } from './oauthRoutes';
 import { getFeatures } from '../licensing';
 import { requireAuth } from '../middleware/auth';
 import { chatLimiter, apiLimiter } from '../middleware/rateLimit';
@@ -124,6 +125,10 @@ export function createHttpApp() {
   app.use('/api/kb', apiLimiter, requireAuth, kbRouter);
   app.use('/api/rag', apiLimiter, requireAuth, ragRouter);
   app.use('/api/admin', apiLimiter, requireAuth, adminRouter);
+
+  // OAuth routes: mounted at /api/auth. Auth applied INSIDE router per-route.
+  // Callback routes are unauthenticated (user returns from OAuth provider).
+  app.use('/api/auth', apiLimiter, oauthRouter);
 
   // v2 routes: mounted at /api. Auth is applied INSIDE each router.
   // This is because channelRoutes has both auth'd CRUD routes and

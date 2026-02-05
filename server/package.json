@@ -9,7 +9,12 @@
     "generate-license": "ts-node scripts/generate-license.ts",
     "test": "echo \"No tests yet\" && exit 0"
   },
-  "keywords": ["ai", "agent", "enterprise", "server"],
+  "keywords": [
+    "ai",
+    "agent",
+    "enterprise",
+    "server"
+  ],
   "author": "AgenticLedger",
   "license": "PROPRIETARY",
   "description": "Agent-in-a-Box v2 Server — Enterprise AI agent platform backend",
@@ -24,6 +29,9 @@
     "drizzle-orm": "^0.45.1",
     "express": "^5.2.1",
     "express-rate-limit": "^7.5.0",
+    "google-auth-library": "^9.15.1",
+    "googleapis": "^144.0.0",
+    "intuit-oauth": "^4.2.2",
     "jsonwebtoken": "^9.0.3",
     "mammoth": "^1.11.0",
     "multer": "^2.0.2",

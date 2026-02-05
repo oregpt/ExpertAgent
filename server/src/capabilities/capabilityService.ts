@@ -272,17 +272,24 @@ export class CapabilityService {
       .where(and(eq(capabilityTokens.agentId, agentId), eq(capabilityTokens.capabilityId, capabilityId)));
 
     const row = rows[0];
-    if (!row || !row.iv) return null;
+    if (!row) return null;
 
+    // Handle both encrypted (has iv) and unencrypted tokens
     const decryptedTokens: Record<string, string> = {};
+    const useEncryption = !!row.iv;
 
     for (const key of ['token1', 'token2', 'token3', 'token4', 'token5'] as const) {
       const tokenValue = row[key];
       if (tokenValue) {
-        try {
-          decryptedTokens[key] = decrypt(tokenValue, row.iv);
-        } catch {
-          // Skip failed decryption
+        if (useEncryption) {
+          try {
+            decryptedTokens[key] = decrypt(tokenValue, row.iv!);
+          } catch {
+            // Skip failed decryption
+          }
+        } else {
+          // Unencrypted token - use as-is
+          decryptedTokens[key] = tokenValue;
         }
       }
     }
@@ -531,14 +538,18 @@ export class CapabilityService {
       {
         id: 'wallet-balance',
         name: 'Wallet Balance',
-        description: 'Get wallet balances across 30+ blockchain networks. Supports Ethereum, Polygon, Arbitrum, Solana, Bitcoin, and more.',
+        description: 'Get wallet balances across 60+ blockchain networks. Supports Ethereum, Polygon, Arbitrum, Base, Solana, Bitcoin, Cardano, and more. Uses Etherscan V2 unified API for 34+ EVM chains.',
         type: 'mcp',
         category: 'blockchain',
         enabled: true,
         config: {
           serverName: 'wallet-balance',
           requiresAuth: false,
-          tokenFields: [{ name: 'token1', label: 'API Key (optional)', required: false }],
+          tokenFields: [
+            { name: 'token1', label: 'Etherscan V2 API Key (for 34+ EVM chains)', required: false, keyName: 'etherscan_v2' },
+            { name: 'token2', label: 'Blockfrost API Key (for Cardano)', required: false, keyName: 'blockfrost_cardano' },
+            { name: 'token3', label: 'FTMScan API Key (for Fantom)', required: false, keyName: 'ftmscan' },
+          ],
         },
       },
       {

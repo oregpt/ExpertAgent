@@ -73,11 +73,36 @@ const TOOLS: ToolDefinition[] = [
 export class WalletBalanceMCPServer implements MCPServerInstance {
   name = 'wallet-balance';
   version = '1.0.0';
-  description = 'Wallet Balance Service - Get wallet balances across 30+ blockchain networks.';
+  description = 'Wallet Balance Service - Get wallet balances across 60+ blockchain networks including 34+ EVM chains via Etherscan V2.';
   tools: MCPTool[] = [];
-  private apiKey?: string;
+  private apiKeys: {
+    etherscan_v2?: string;
+    blockfrost_cardano?: string;
+    ftmscan?: string;
+  } = {};
 
-  setApiKey(key: string): void { this.apiKey = key; }
+  /** Set a single API key (legacy support) */
+  setApiKey(key: string): void { 
+    // For backward compatibility, treat single key as etherscan_v2
+    this.apiKeys.etherscan_v2 = key; 
+  }
+
+  /** Set multiple API keys from token fields */
+  setTokens(tokens: { token1?: string; token2?: string; token3?: string }): void {
+    // Map token fields to named API keys:
+    // token1 = Etherscan V2 API Key (for 34+ EVM chains)
+    // token2 = Blockfrost API Key (for Cardano)
+    // token3 = FTMScan API Key (for Fantom)
+    if (tokens.token1) this.apiKeys.etherscan_v2 = tokens.token1;
+    if (tokens.token2) this.apiKeys.blockfrost_cardano = tokens.token2;
+    if (tokens.token3) this.apiKeys.ftmscan = tokens.token3;
+    console.log(`[wallet-balance] Configured API keys: etherscan_v2=${!!this.apiKeys.etherscan_v2}, blockfrost_cardano=${!!this.apiKeys.blockfrost_cardano}, ftmscan=${!!this.apiKeys.ftmscan}`);
+  }
+
+  /** Get the JSON string of API keys for the remote service */
+  private getApiKeysJson(): string {
+    return JSON.stringify(this.apiKeys);
+  }
 
   async initialize(): Promise<void> {
     this.tools = TOOLS.map((t) => this.convertTool(t));
@@ -99,9 +124,15 @@ export class WalletBalanceMCPServer implements MCPServerInstance {
 
   private async request(endpoint: string, params: Record<string, any> = {}): Promise<any> {
     const url = new URL(`${BASE_URL}${endpoint}`);
+    // Add API keys as accessToken parameter (JSON-encoded object)
+    const apiKeysJson = this.getApiKeysJson();
+    if (apiKeysJson !== '{}') {
+      params.accessToken = apiKeysJson;
+    }
     Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null) url.searchParams.append(k, String(v)); });
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (this.apiKey) headers['Authorization'] = `Bearer ${this.apiKey}`;
+    // Also send as Authorization header for backwards compatibility
+    if (this.apiKeys.etherscan_v2) headers['Authorization'] = `Bearer ${this.apiKeys.etherscan_v2}`;
     const res = await fetch(url.toString(), { headers });
     if (!res.ok) throw new Error(`Wallet Balance API error ${res.status}`);
     return res.json();
