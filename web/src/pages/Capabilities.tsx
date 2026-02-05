@@ -26,7 +26,7 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
   const [error, setError] = useState<string | null>(null);
   const [selectedCap, setSelectedCap] = useState<Capability | null>(null);
   const [tokenModal, setTokenModal] = useState(false);
-  const [tokenValues, setTokenValues] = useState({ token1: '', token2: '' });
+  const [tokenValues, setTokenValues] = useState<Record<string, string>>({ token1: '', token2: '', token3: '', token4: '', token5: '' });
   const [saving, setSaving] = useState(false);
   const [mcpStatus, setMcpStatus] = useState<any>(null);
 
@@ -111,7 +111,7 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
 
   const openTokenModal = (cap: Capability) => {
     setSelectedCap(cap);
-    setTokenValues({ token1: '', token2: '' });
+    setTokenValues({ token1: '', token2: '', token3: '', token4: '', token5: '' });
     setTokenModal(true);
   };
 
@@ -346,7 +346,7 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
                           cursor: 'pointer',
                         }}
                       >
-                        + Add API Key
+                        + Add Credential
                       </button>
                     )}
                   </div>
@@ -429,53 +429,34 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
               Configure {selectedCap.name}
             </h3>
             <p style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 20 }}>
-              Enter your API credentials. They will be encrypted before storage.
+              Enter your credentials. They will be encrypted before storage.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={{ fontSize: 13, color: colors.textSecondary, display: 'block', marginBottom: 6 }}>
-                  API Key
-                </label>
-                <input
-                  type="password"
-                  value={tokenValues.token1}
-                  onChange={(e) => setTokenValues({ ...tokenValues, token1: e.target.value })}
-                  placeholder="Enter API key..."
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 8,
-                    border: `1px solid ${colors.border}`,
-                    background: colors.bgInput,
-                    color: colors.text,
-                    fontSize: 14,
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 13, color: colors.textSecondary, display: 'block', marginBottom: 6 }}>
-                  Secret Key (optional)
-                </label>
-                <input
-                  type="password"
-                  value={tokenValues.token2}
-                  onChange={(e) => setTokenValues({ ...tokenValues, token2: e.target.value })}
-                  placeholder="Enter secret key if required..."
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 8,
-                    border: `1px solid ${colors.border}`,
-                    background: colors.bgInput,
-                    color: colors.text,
-                    fontSize: 14,
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
+              {/* Dynamic token fields based on capability config */}
+              {(selectedCap?.config?.tokenFields || [{ name: 'token1', label: 'API Key', required: true }]).map((field: { name: string; label: string; required?: boolean }) => (
+                <div key={field.name}>
+                  <label style={{ fontSize: 13, color: colors.textSecondary, display: 'block', marginBottom: 6 }}>
+                    {field.label}{!field.required && ' (optional)'}
+                  </label>
+                  <input
+                    type="password"
+                    value={tokenValues[field.name] || ''}
+                    onChange={(e) => setTokenValues({ ...tokenValues, [field.name]: e.target.value })}
+                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: `1px solid ${colors.border}`,
+                      background: colors.bgInput,
+                      color: colors.text,
+                      fontSize: 14,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              ))}
 
               <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
                 <button
@@ -495,17 +476,17 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
                 </button>
                 <button
                   onClick={saveTokens}
-                  disabled={saving || !tokenValues.token1}
+                  disabled={saving || (selectedCap?.config?.tokenFields?.some((f: { required?: boolean }) => f.required) && !tokenValues.token1)}
                   style={{
                     flex: 1,
                     padding: '10px 16px',
                     borderRadius: 8,
                     border: 'none',
-                    background: saving || !tokenValues.token1 ? colors.primaryLight : colors.primary,
+                    background: saving ? colors.primaryLight : colors.primary,
                     color: '#fff',
                     fontSize: 14,
                     fontWeight: 500,
-                    cursor: saving || !tokenValues.token1 ? 'default' : 'pointer',
+                    cursor: saving ? 'default' : 'pointer',
                   }}
                 >
                   {saving ? 'Saving...' : 'Save Credentials'}

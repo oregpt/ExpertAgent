@@ -461,7 +461,97 @@ async function createTablesIfNotExist(): Promise<void> {
     ON ai_conversations(agent_id, last_message_at DESC)
   `).catch(() => {});
 
-  console.log('[db] All tables created/verified (including v2 soul & memory + proactive engine + channels + session continuity)');
+  // ============================================================================
+  // Performance Indexes — Critical for production load
+  // ============================================================================
+  // These cover all high-frequency query paths. Without them, the system
+  // degrades at ~10K messages per agent or ~50 concurrent agents.
+
+  // Chat performance: messages are always queried by conversation
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON ai_messages(conversation_id)
+  `).catch(() => {});
+
+  // Conversations are queried by agent frequently
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_conversations_agent_id ON ai_conversations(agent_id)
+  `).catch(() => {});
+
+  // Sorted conversation listing (most recent first)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_conversations_agent_last_msg ON ai_conversations(agent_id, last_message_at DESC)
+  `).catch(() => {});
+
+  // Proactive engine: efficient cron polling (partial index)
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_cron_jobs_enabled_next ON ai_agent_cron_jobs(enabled, next_run_at) WHERE enabled = true
+  `).catch(() => {});
+
+  // Task run history per agent
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_task_runs_agent_started ON ai_agent_task_runs(agent_id, started_at DESC)
+  `).catch(() => {});
+
+  // Channel lookups by agent + enabled status
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_agent_channels_agent_enabled ON ai_agent_channels(agent_id, enabled)
+  `).catch(() => {});
+
+  // Knowledge base documents queried by agent
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_documents_agent_id ON ai_documents(agent_id)
+  `).catch(() => {});
+
+  // Documents queried by folder
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_documents_folder_id ON ai_documents(folder_id)
+  `).catch(() => {});
+
+  // Document chunks queried by parent document and by agent
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_document_chunks_document_id ON ai_document_chunks(document_id)
+  `).catch(() => {});
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_document_chunks_agent_id ON ai_document_chunks(agent_id)
+  `).catch(() => {});
+
+  // Capabilities per agent
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_agent_capabilities_agent ON ai_agent_capabilities(agent_id)
+  `).catch(() => {});
+
+  // Capability tokens per agent+capability
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_capability_tokens_agent ON ai_capability_tokens(agent_id, capability_id)
+  `).catch(() => {});
+
+  // Agent API keys by agent
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_agent_api_keys_agent ON ai_agent_api_keys(agent_id)
+  `).catch(() => {});
+
+  // Document tags junction table
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_document_tags_document ON ai_document_tags(document_id)
+  `).catch(() => {});
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_document_tags_tag ON ai_document_tags(tag_id)
+  `).catch(() => {});
+
+  // GitLab refreshes: recent history per agent
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_gitlab_refreshes_agent_started ON ai_gitlab_refreshes(agent_id, started_at DESC)
+  `).catch(() => {});
+
+  // Content hash column for incremental embedding (Fix 5)
+  await db.execute(sql`
+    ALTER TABLE ai_agent_memory_embeddings ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)
+  `).catch(() => {});
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_agent_memory_embeddings_hash ON ai_agent_memory_embeddings(doc_id, content_hash)
+  `).catch(() => {});
+
+  console.log('[db] All tables and indexes created/verified (including v2 soul & memory + proactive engine + channels + session continuity + performance indexes)');
 }
 
 /**

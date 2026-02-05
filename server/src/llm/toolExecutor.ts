@@ -12,10 +12,13 @@ import { LLMMessage, Tool, GenerateResult, ToolCall, GenerateOptions } from './t
 import { getProviderForModel } from './index';
 import { getOrchestrator } from '../mcp-hub';
 import { getMCPServerManager } from '../mcp-hub/mcp-server-manager';
-import { getFeatures } from '../licensing/features';
+import { getFeatures, isCapabilityAllowed } from '../licensing/features';
 import { getAgentFeatures } from '../licensing/agentFeatures';
 import { MEMORY_TOOLS, isMemoryTool, executeMemoryTool } from '../memory/memoryTools';
 import { DEEP_TOOLS, isDeepTool, executeDeepTool } from '../tools/deepTools';
+import { CRON_TOOLS, isCronTool, executeCronTool } from '../tools/cronTools';
+import { AGENT_TOOLS, isAgentTool, executeAgentTool } from '../tools/agentTools';
+import { BROWSER_TOOLS, isBrowserTool, executeBrowserTool } from '../tools/browserTools';
 
 const MAX_TOOL_ITERATIONS = 10;
 
@@ -67,102 +70,112 @@ export async function getDetailedToolsForAgent(agentId: string): Promise<Tool[]>
   const registry = orchestrator.serverRegistry;
   const tools: Tool[] = [];
 
-  // Get enabled capabilities for this agent
+  // Get enabled capabilities for this agent (dynamic — no hardcoded mappings)
+  // Three-layer gate: (1) license allows capability, (2) globally enabled, (3) agent-enabled
   const { capabilityService } = await import('../capabilities');
   const enabledCaps = await capabilityService.getAgentCapabilities(agentId);
-  const enabledCapIds = new Set(enabledCaps.filter(c => c.agentEnabled).map(c => c.id));
+  const licensedAndEnabled = enabledCaps.filter(c => c.agentEnabled && isCapabilityAllowed(c.id));
+  const enabledCapIds = new Set(licensedAndEnabled.map(c => c.id));
   
-  console.log('[tool-executor] Enabled capability IDs:', Array.from(enabledCapIds));
+  console.log('[tool-executor] Licensed + enabled capability IDs:', Array.from(enabledCapIds));
   
-  // Map capability IDs to server names
-  const capToServer: Record<string, string> = {
-    'mcp-ccview': 'ccview',
-    'mcp-ccexplorer-pro': 'ccexplorer',
-    'mcp-lighthouse': 'lighthouse',
-    'anyapi': 'anyapi',
-    'coingecko': 'anyapi',
-  };
-  
-  // Get enabled server names
+  // Dynamically resolve capability IDs → MCP server names from DB config
+  // Each capability record has config.serverName for MCP-type capabilities
+  // AnyAPI-type capabilities route to the 'anyapi' server
   const enabledServers = new Set<string>();
-  for (const capId of enabledCapIds) {
-    const serverName = capToServer[capId];
-    if (serverName) {
-      enabledServers.add(serverName);
+  for (const cap of licensedAndEnabled) {
+    if (cap.type === 'mcp') {
+      // MCP capabilities store their server name in config.serverName
+      const serverName = (cap.config as any)?.serverName;
+      if (serverName) {
+        enabledServers.add(serverName);
+      } else {
+        // Fallback: derive server name from capability ID (e.g., 'mcp-ccview' → 'ccview')
+        const derived = cap.id.replace(/^mcp-/, '');
+        enabledServers.add(derived);
+        console.warn(`[tool-executor] Capability '${cap.id}' missing config.serverName, derived: '${derived}'`);
+      }
+    } else if (cap.type === 'anyapi') {
+      // All AnyAPI capabilities route through the 'anyapi' MCP server
+      enabledServers.add('anyapi');
     }
   }
   
   console.log('[tool-executor] Enabled servers:', Array.from(enabledServers));
   
-  // Get all tools but filter to only enabled servers
-  // Limit to avoid token overflow while keeping useful tools
-  const MAX_TOOLS = 20;
-  let allTools = registry.getAllTools().filter(t => enabledServers.has(t.serverName));
+  // ══════════════════════════════════════════════════════════════════════
+  // ONE TOOL PER MCP SERVER (Expert Agent pattern)
+  //
+  // Instead of sending every individual MCP method as a separate tool
+  // (which overwhelms the prompt), we create ONE tool per MCP server.
+  // The tool has an `action` enum listing available commands.
+  // The LLM picks the server + action + params, then we route it.
+  //
+  // Example: Instead of 30 separate ccview tools, we send:
+  //   mcp__ccview(action: "get_validators" | "get_governance" | ..., params: {...})
+  //
+  // This keeps the tool count manageable regardless of how many MCP
+  // servers are connected or how many methods each server exposes.
+  // ══════════════════════════════════════════════════════════════════════
   
-  console.log('[tool-executor] Filtered tools count:', allTools.length);
+  const allMcpTools = registry.getAllTools().filter(t => enabledServers.has(t.serverName));
   
-  // ALWAYS limit - prioritize key tools
-  // Prioritize governance, validators, overview, statistics, round tools
-  const priorityKeywords = ['governance', 'validator', 'overview', 'statistics', 'list_active', 'super', 'round', 'network', 'current', 'consensus', 'search'];
-  allTools.sort((a, b) => {
-    const aScore = priorityKeywords.filter(k => a.name.toLowerCase().includes(k)).length;
-    const bScore = priorityKeywords.filter(k => b.name.toLowerCase().includes(k)).length;
-    return bScore - aScore;
-  });
-  allTools = allTools.slice(0, MAX_TOOLS);
-  console.log('[tool-executor] Limited to', allTools.length, 'tools:', allTools.map(t => t.name).join(', '));
-  for (const tool of allTools) {
-    // Convert Zod schema to JSON schema for LLM
-    const inputSchema = tool.inputSchema;
-    let properties: Record<string, any> = {};
-    let required: string[] = [];
-
-    // Try to extract schema shape if it's a Zod object
-    try {
-      if (inputSchema && typeof inputSchema === 'object' && '_def' in inputSchema) {
-        const def = (inputSchema as any)._def;
-        if (def.typeName === 'ZodObject' && def.shape) {
-          const shape = typeof def.shape === 'function' ? def.shape() : def.shape;
-          for (const [key, value] of Object.entries(shape)) {
-            const fieldDef = (value as any)?._def;
-            // Keep parameter descriptions minimal (just the key name if description is verbose)
-            const paramDesc = fieldDef?.description || key;
-            properties[key] = {
-              type: fieldDef?.typeName === 'ZodString' ? 'string' :
-                    fieldDef?.typeName === 'ZodNumber' ? 'number' :
-                    fieldDef?.typeName === 'ZodBoolean' ? 'boolean' :
-                    'string',
-              // Truncate to 30 chars max to save tokens
-              description: paramDesc.length > 30 ? paramDesc.slice(0, 30) : paramDesc,
-            };
-            // Check if required (not optional)
-            if (fieldDef?.typeName !== 'ZodOptional') {
-              required.push(key);
-            }
-          }
-        }
+  // Group tools by server
+  const toolsByServer = new Map<string, typeof allMcpTools>();
+  for (const tool of allMcpTools) {
+    const existing = toolsByServer.get(tool.serverName) || [];
+    existing.push(tool);
+    toolsByServer.set(tool.serverName, existing);
+  }
+  
+  console.log('[tool-executor] MCP servers with tools:', Array.from(toolsByServer.keys()).join(', '));
+  
+  // Create ONE tool per MCP server
+  for (const [serverName, serverTools] of toolsByServer) {
+    // Build action enum from available tool names
+    const actionNames = serverTools.map(t => t.name);
+    
+    // Build a concise description of available actions
+    const actionDescriptions = serverTools
+      .map(t => {
+        const desc = t.description.length > 60 ? t.description.slice(0, 57) + '...' : t.description;
+        return `  - ${t.name}: ${desc}`;
+      })
+      .join('\n');
+    
+    // Find the capability that maps to this server (for display name)
+    const matchingCap = enabledCaps.find(c => {
+      if (c.type === 'mcp') {
+        const cfgServer = (c.config as any)?.serverName;
+        return cfgServer === serverName || c.id.replace(/^mcp-/, '') === serverName;
       }
-    } catch (e) {
-      // If schema extraction fails, use empty properties
-      console.warn(`[tool-executor] Could not extract schema for ${tool.name}:`, e);
-    }
-
-    // Truncate description to save tokens (max 100 chars)
-    const desc = tool.description.length > 100 
-      ? tool.description.slice(0, 97) + '...' 
-      : tool.description;
+      return false;
+    });
+    const displayName = matchingCap?.name || serverName;
     
     tools.push({
-      name: `${tool.serverName}__${tool.name}`,
-      description: `[${tool.serverName}] ${desc}`,
-      serverName: tool.serverName,
+      name: `mcp__${serverName}`,
+      description: `[MCP: ${displayName}] Execute an action on this service.\n\nAvailable actions:\n${actionDescriptions}`,
+      serverName,
       inputSchema: {
         type: 'object',
-        properties,
-        ...(required.length > 0 ? { required } : {}),
+        properties: {
+          action: {
+            type: 'string',
+            description: `Action to execute. One of: ${actionNames.join(', ')}`,
+            enum: actionNames,
+          },
+          params: {
+            type: 'object',
+            description: 'Parameters for the action (varies by action). Pass relevant key-value pairs.',
+          },
+        },
+        required: ['action'],
       },
     });
   }
+  
+  console.log('[tool-executor] Total MCP server tools:', toolsByServer.size, '(from', allMcpTools.length, 'individual methods)');
 
   // v2: Add memory tools if soulMemory feature is enabled (per-agent)
   const features = await getAgentFeatures(agentId);
@@ -175,6 +188,25 @@ export async function getDetailedToolsForAgent(agentId: string): Promise<Tool[]>
   if (features.deepTools) {
     tools.push(...DEEP_TOOLS);
     console.log('[tool-executor] Added deep tools:', DEEP_TOOLS.map(t => t.name).join(', '));
+  }
+
+  // v2: Add cron tools if proactive feature is enabled (per-agent)
+  if (features.proactive) {
+    tools.push(...CRON_TOOLS);
+    console.log('[tool-executor] Added cron tools:', CRON_TOOLS.map(t => t.name).join(', '));
+  }
+
+  // v2: Add agent spawn tools if backgroundAgents feature is enabled (per-agent)
+  if (features.backgroundAgents) {
+    tools.push(...AGENT_TOOLS);
+    console.log('[tool-executor] Added agent tools:', AGENT_TOOLS.map(t => t.name).join(', '));
+  }
+
+  // v2: Add browser tools if deepTools feature is enabled (per-agent)
+  // Browser tools share the deepTools gate — they're "deep" tools for web interaction
+  if (features.deepTools) {
+    tools.push(...BROWSER_TOOLS);
+    console.log('[tool-executor] Added browser tools:', BROWSER_TOOLS.map(t => t.name).join(', '));
   }
 
   return tools;
@@ -335,32 +367,30 @@ export async function executeWithTools(
         continue;
       }
 
-      // Parse the namespaced tool name (server__toolname)
-      const parsed = parseNamespacedTool(toolCall.name);
-
-      if (!parsed) {
-        // Fallback: try legacy non-namespaced lookup
-        const serverName = findServerForTool(toolCall.name, tools);
-        if (!serverName) {
-          toolResultMessages.push({
-            role: 'tool',
-            content: `Error: Tool '${toolCall.name}' not found`,
-            toolCallId: toolCall.id,
-          });
-          toolsUsed.push({
-            name: toolCall.name,
-            input: toolCall.input,
-            output: `Tool not found`,
-            success: false,
-          });
-          continue;
-        }
-        // Execute with non-namespaced name
-        const toolResult = await executeTool(serverName, toolCall.name, toolCall.input);
+      // v2: Check if this is a cron tool (cron__schedule, cron__list, etc.)
+      if (isCronTool(toolCall.name)) {
+        const cronResult = await executeCronTool(options.agentId, toolCall);
         
-        // Truncate large outputs
+        toolResultMessages.push({
+          role: 'tool',
+          content: cronResult.output,
+          toolCallId: toolCall.id,
+        });
+        toolsUsed.push({
+          name: toolCall.name,
+          input: toolCall.input,
+          output: cronResult.output,
+          success: cronResult.success,
+        });
+        continue;
+      }
+
+      // v2: Check if this is an agent tool (agent__spawn_task)
+      if (isAgentTool(toolCall.name)) {
+        const agentResult = await executeAgentTool(options.agentId, toolCall);
+        
         const MAX_OUTPUT = 20000;
-        let output = toolResult.output;
+        let output = agentResult.output;
         if (output.length > MAX_OUTPUT) {
           output = output.slice(0, MAX_OUTPUT) + '\n\n[OUTPUT TRUNCATED]';
         }
@@ -373,8 +403,104 @@ export async function executeWithTools(
         toolsUsed.push({
           name: toolCall.name,
           input: toolCall.input,
-          output: output,
+          output,
+          success: agentResult.success,
+        });
+        continue;
+      }
+
+      // v2: Check if this is a browser tool (browser__navigate, browser__click, etc.)
+      if (isBrowserTool(toolCall.name)) {
+        const browserResult = await executeBrowserTool(options.agentId, toolCall);
+        
+        const MAX_OUTPUT = 20000;
+        let output = browserResult.output;
+        if (output.length > MAX_OUTPUT) {
+          output = output.slice(0, MAX_OUTPUT) + '\n\n[OUTPUT TRUNCATED]';
+        }
+        
+        toolResultMessages.push({
+          role: 'tool',
+          content: output,
+          toolCallId: toolCall.id,
+        });
+        toolsUsed.push({
+          name: toolCall.name,
+          input: toolCall.input,
+          output,
+          success: browserResult.success,
+        });
+        continue;
+      }
+
+      // ════════════════════════════════════════════════════════════════
+      // MCP Server Tools (one-tool-per-server pattern)
+      //
+      // Tool name format: mcp__<serverName>
+      // Input: { action: "tool_name", params: { ... } }
+      // Routes to: orchestrator.executeAction(serverName, action, params)
+      // ════════════════════════════════════════════════════════════════
+      if (toolCall.name.startsWith('mcp__')) {
+        const serverName = toolCall.name.replace('mcp__', '');
+        const action = toolCall.input.action as string;
+        const params = (toolCall.input.params as Record<string, unknown>) || {};
+
+        if (!action) {
+          toolResultMessages.push({
+            role: 'tool',
+            content: 'Error: Missing "action" parameter. Specify which action to execute.',
+            toolCallId: toolCall.id,
+          });
+          toolsUsed.push({
+            name: toolCall.name,
+            input: toolCall.input,
+            output: 'Missing action parameter',
+            success: false,
+          });
+          continue;
+        }
+
+        console.log(`[tool-executor] MCP call: ${serverName}.${action}`, JSON.stringify(params).slice(0, 200));
+        const toolResult = await executeTool(serverName, action, params);
+
+        // Truncate large outputs
+        const MAX_TOOL_OUTPUT_CHARS = 20000;
+        let truncatedOutput = toolResult.output;
+        if (truncatedOutput.length > MAX_TOOL_OUTPUT_CHARS) {
+          truncatedOutput = truncatedOutput.slice(0, MAX_TOOL_OUTPUT_CHARS) + '\n\n[OUTPUT TRUNCATED]';
+          console.log(`[tool-executor] Truncated output for ${serverName}.${action}: ${toolResult.output.length} -> ${truncatedOutput.length} chars`);
+        }
+
+        toolResultMessages.push({
+          role: 'tool',
+          content: truncatedOutput,
+          toolCallId: toolCall.id,
+        });
+        toolsUsed.push({
+          name: `${serverName}.${action}`,
+          input: params,
+          output: truncatedOutput,
           success: toolResult.success,
+        });
+        continue;
+      }
+
+      // ════════════════════════════════════════════════════════════════
+      // Legacy: direct server__toolname format (backward compat)
+      // ════════════════════════════════════════════════════════════════
+      const parsed = parseNamespacedTool(toolCall.name);
+
+      if (!parsed) {
+        toolResultMessages.push({
+          role: 'tool',
+          content: `Error: Tool '${toolCall.name}' not found. Available tool prefixes: memory__, cron__, agent__, browser__, mcp__, web__`,
+          toolCallId: toolCall.id,
+        });
+        toolsUsed.push({
+          name: toolCall.name,
+          input: toolCall.input,
+          output: `Tool not found`,
+          success: false,
         });
         continue;
       }
@@ -382,12 +508,10 @@ export async function executeWithTools(
       // Execute with the actual tool name (not namespaced)
       const toolResult = await executeTool(parsed.serverName, parsed.toolName, toolCall.input);
 
-      // Truncate large tool outputs to prevent token overflow
-      const MAX_TOOL_OUTPUT_CHARS = 20000; // ~5k tokens
+      const MAX_TOOL_OUTPUT_CHARS = 20000;
       let truncatedOutput = toolResult.output;
       if (truncatedOutput.length > MAX_TOOL_OUTPUT_CHARS) {
-        truncatedOutput = truncatedOutput.slice(0, MAX_TOOL_OUTPUT_CHARS) + '\n\n[OUTPUT TRUNCATED - showing first 20k chars]';
-        console.log(`[tool-executor] Truncated output for ${parsed.toolName}: ${toolResult.output.length} -> ${truncatedOutput.length} chars`);
+        truncatedOutput = truncatedOutput.slice(0, MAX_TOOL_OUTPUT_CHARS) + '\n\n[OUTPUT TRUNCATED]';
       }
 
       toolResultMessages.push({
@@ -395,11 +519,10 @@ export async function executeWithTools(
         content: truncatedOutput,
         toolCallId: toolCall.id,
       });
-
       toolsUsed.push({
         name: toolCall.name,
         input: toolCall.input,
-        output: toolResult.output,
+        output: truncatedOutput,
         success: toolResult.success,
       });
     }

@@ -19,6 +19,7 @@ import { channelRouter } from '../channels/channelRouter';
 import type { AgentChannelRow, InboundMessage } from '../channels/types';
 import { requireAuth } from '../middleware/auth';
 import { validate, channelCreateSchema } from '../middleware/validation';
+import { encryptChannelConfig, decryptChannelConfig, maskChannelConfig } from '../utils/encryption';
 
 export const channelRoutes = Router();
 
@@ -82,7 +83,8 @@ channelRoutes.get('/agents/:id/channels', requireAuth, requireMultiChannel, requ
         channelType: r.channelType,
         channelName: r.channelName,
         enabled: r.enabled,
-        // Don't expose full config (may contain secrets) — just the type and status
+        // Mask sensitive fields (show "••••configured" instead of actual secrets)
+        config: maskChannelConfig(r.config || {}),
         hasConfig: !!(r.config && Object.keys(r.config).length > 0),
         createdAt: r.createdAt,
         updatedAt: r.updatedAt,
@@ -122,20 +124,23 @@ channelRoutes.post('/agents/:id/channels', requireAuth, requireMultiChannel, req
       return res.status(400).json({ error: configError });
     }
 
+    // Encrypt sensitive fields before storing in DB
+    const encryptedConfig = encryptChannelConfig(config);
+
     const rows = await db
       .insert(agentChannels)
       .values({
         agentId,
         channelType: channel_type,
         channelName: channel_name || null,
-        config: config,
+        config: encryptedConfig,
         enabled: true,
       })
       .returning() as any[];
 
     const created = rows[0] as AgentChannelRow;
 
-    // Initialize the adapter for this new channel
+    // Initialize the adapter with PLAINTEXT config (not encrypted)
     try {
       const adapter = channelRouter.getAdapter(channel_type);
       if (adapter) {
@@ -180,7 +185,7 @@ channelRoutes.put('/agents/:id/channels/:channelId', requireAuth, requireMultiCh
     // Build update object
     const updateData: any = { updatedAt: new Date() };
     if (channel_name !== undefined) updateData.channelName = channel_name;
-    if (config !== undefined) updateData.config = config;
+    if (config !== undefined) updateData.config = encryptChannelConfig(config); // Encrypt before storing
     if (enabled !== undefined) updateData.enabled = enabled;
 
     const rows = await db
@@ -195,7 +200,7 @@ channelRoutes.put('/agents/:id/channels/:channelId', requireAuth, requireMultiCh
 
     const updated = rows[0] as AgentChannelRow;
 
-    // Re-initialize adapter if config changed
+    // Re-initialize adapter with PLAINTEXT config (not encrypted)
     if (config !== undefined) {
       try {
         const adapter = channelRouter.getAdapter(updated.channelType);
@@ -367,11 +372,12 @@ channelRoutes.post('/channels/webhook/:agentId', async (req: Request, res: Respo
 
     const channelRow = rows[0] as AgentChannelRow;
 
-    // Verify webhook signature
+    // Verify webhook signature (decrypt config first for verification)
     const webhookAdapter = channelRouter.getAdapter('webhook');
     if (webhookAdapter?.verifyWebhook) {
-      // Re-initialize with this specific channel's config for verification
-      await webhookAdapter.initialize(channelRow.config || {});
+      // Re-initialize with this specific channel's decrypted config for verification
+      const decryptedConfig = decryptChannelConfig(channelRow.config || {});
+      await webhookAdapter.initialize(decryptedConfig);
       if (!webhookAdapter.verifyWebhook(req)) {
         console.warn('[channel-routes] Webhook signature verification failed');
         return res.status(401).json({ error: 'Invalid signature' });

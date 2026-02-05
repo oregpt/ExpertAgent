@@ -870,8 +870,8 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
               ]).map((feature) => {
                 const globalEnabled = featuresDetailed?.global?.[feature.key] ?? false;
                 const agentOverride = agentFeatures[feature.key];
-                // Effective: globally enabled AND (agent hasn't explicitly disabled)
-                const effectiveEnabled = globalEnabled && agentOverride !== false;
+                // Effective: globally enabled AND agent has explicitly enabled (default = off for new agents)
+                const effectiveEnabled = globalEnabled && agentOverride === true;
 
                 return (
                   <div

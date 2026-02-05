@@ -72,25 +72,56 @@ async function initializeChannels() {
   }
 }
 
-// Start server
-app.listen(config.port, async () => {
-  logger.info('Agent-in-a-Box server started', { port: config.port });
+// ============================================================================
+// Main Startup — all initialization BEFORE accepting HTTP traffic
+// ============================================================================
 
+async function main() {
   // Initialize licensing FIRST (before anything else)
   initializeLicensing();
 
-  // Initialize database (pgvector extension, migrations)
+  // Initialize database (pgvector extension, migrations) — MUST complete before serving
   await initializeDatabase();
 
-  // Initialize MCP Hub and capabilities after server starts (if licensed)
+  // Initialize MCP Hub and capabilities (if licensed)
   await initializeMCPHub();
   await initializeCapabilities();
 
-  // Start proactive engine (heartbeats, cron jobs) — no-op if feature disabled
-  proactiveEngine.start();
+  // NOW start accepting HTTP requests (all dependencies are ready)
+  // Use http.createServer for explicit control (Express 5 compatibility)
+  const http = await import('http');
+  const server = http.createServer(app);
+  
+  server.listen(config.port, '0.0.0.0', () => {
+    const addr = server.address();
+    logger.info('Agent-in-a-Box server started', { port: config.port, address: addr });
+    console.log(`[server] HTTP listening on http://0.0.0.0:${config.port}`);
+  });
 
-  // Initialize multi-channel delivery — no-op if feature disabled
+  server.on('error', (err: Error) => {
+    logger.error('HTTP server error', { error: err.message });
+    console.error('[server] BIND ERROR:', err);
+    process.exit(1);
+  });
+
+  // Start these AFTER server is listening (they depend on DB but don't need to block startup)
+  proactiveEngine.start();
   await initializeChannels();
+}
+
+main().then(() => {
+  console.log('[main] Startup complete — server running');
+}).catch((err) => {
+  console.error('[main] FATAL:', err);
+  logger.error('Fatal startup error', { error: (err as Error).message, stack: (err as Error).stack });
+  process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT EXCEPTION]', err);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('[UNHANDLED REJECTION]', err);
 });
 
 // ============================================================================

@@ -16,6 +16,7 @@ import { agentChannels } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { generateReply, startConversation, appendMessage } from '../chat/chatService';
 import { logger } from '../utils/logger';
+import { decryptChannelConfig } from '../utils/encryption';
 
 // ============================================================================
 // Channel Router
@@ -87,6 +88,7 @@ class ChannelRouter {
 
   /**
    * Initialize a single channel config with its adapter.
+   * Decrypts sensitive config fields before passing to the adapter.
    */
   private async initializeChannel(channelRow: AgentChannelRow): Promise<void> {
     const adapter = this.adapters.get(channelRow.channelType);
@@ -102,7 +104,9 @@ class ChannelRouter {
       return; // Already initialized
     }
 
-    await adapter.initialize(channelRow.config || {});
+    // Decrypt sensitive fields before passing to the adapter
+    const decryptedConfig = decryptChannelConfig(channelRow.config || {});
+    await adapter.initialize(decryptedConfig);
     this.initializedChannels.add(key);
 
     logger.info('Channel initialized', {

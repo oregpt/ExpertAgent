@@ -522,10 +522,15 @@ adminRouter.post('/capabilities/:capabilityId/tokens', async (req, res) => {
       expiresAt ? new Date(expiresAt) : undefined
     );
 
-    // For bundled MCP servers, configure the API key immediately
-    if (token1 && (capabilityId === 'mcp-ccview' || capabilityId === 'mcp-ccexplorer-pro')) {
-      const manager = getMCPServerManager();
+    // For bundled MCP servers, configure tokens immediately (live reload)
+    const manager = getMCPServerManager();
+    const singleTokenCaps = ['mcp-ccview', 'mcp-ccexplorer-pro', 'mcp-brave-search', 'mcp-slack', 'slack', 'notion', 'bitwave-price', 'wallet-balance', 'kaiko', 'thetie-canton', 'gamma', 'faam-tracker', 'trader'];
+    const multiTokenCaps = ['quickbooks', 'calendar', 'sheets', 'email', 'binanceus', 'kraken', 'coinbase', 'google-docs', 'plaid', 'chatscraper'];
+
+    if (token1 && singleTokenCaps.includes(capabilityId)) {
       manager.configureBundledServer(capabilityId, token1);
+    } else if (multiTokenCaps.includes(capabilityId)) {
+      manager.configureBundledServerTokens(capabilityId, { token1, token2, token3, token4, token5 });
     }
 
     res.json({ success: true, capabilityId });

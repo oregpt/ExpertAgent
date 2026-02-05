@@ -3,12 +3,13 @@
  *
  * Initializes feature flags on startup from:
  * 1. License key (AGENTICLEDGER_LICENSE_KEY) - highest priority
- * 2. Environment variables (FEATURE_*) - ONLY in development mode
+ * 2. Environment variables (FEATURE_*) - ONLY when AGENTICLEDGER_DEV_MODE=true
  * 3. Base features (fallback)
  *
- * IMPORTANT: In production (NODE_ENV=production), env var overrides are DISABLED.
- * This prevents customers from bypassing licensing by setting FEATURE_* vars.
- * They must have a valid license key to unlock features.
+ * IMPORTANT: Env var overrides are ONLY allowed when AGENTICLEDGER_DEV_MODE
+ * is explicitly set to "true". This prevents accidental license bypass when
+ * NODE_ENV is unset or set to anything other than "production".
+ * Customers must have a valid license key to unlock features.
  */
 
 import { FeatureFlags, BASE_FEATURES, setFeatures, getFeatures, isCapabilityAllowed, canCreateAgent } from './features';
@@ -120,10 +121,13 @@ export function initializeLicensing(): void {
     }
   }
 
-  // Priority 2: Check for env var overrides (ONLY in development mode)
-  const isProduction = process.env.NODE_ENV === 'production';
+  // Priority 2: Check for env var overrides (ONLY when explicit dev mode is set)
+  // SECURITY: Only AGENTICLEDGER_DEV_MODE=true enables env overrides.
+  // This prevents bypass when NODE_ENV is unset (default Node.js behavior).
+  const isDevMode = process.env.AGENTICLEDGER_DEV_MODE?.toLowerCase().trim() === 'true';
 
-  if (!isProduction) {
+  if (isDevMode) {
+    console.log('[licensing] ⚠️  DEV MODE ACTIVE (AGENTICLEDGER_DEV_MODE=true) — env var overrides enabled');
     const envFeatures = loadFeaturesFromEnv();
     const hasEnvOverrides = Object.keys(envFeatures).length > 0;
 
@@ -138,7 +142,7 @@ export function initializeLicensing(): void {
       return;
     }
   } else {
-    console.log('[licensing] Production mode - env var overrides disabled');
+    console.log('[licensing] Env var overrides disabled (set AGENTICLEDGER_DEV_MODE=true to enable)');
   }
 
   // Priority 3: Use base features
@@ -176,9 +180,9 @@ export function getLicensingStatus(): {
     }
   }
 
-  // Only report env mode if not in production
-  const isProduction = process.env.NODE_ENV === 'production';
-  if (!isProduction) {
+  // Only report env mode if explicit dev mode is set
+  const isDevMode = process.env.AGENTICLEDGER_DEV_MODE?.toLowerCase().trim() === 'true';
+  if (isDevMode) {
     const envFeatures = loadFeaturesFromEnv();
     if (Object.keys(envFeatures).length > 0) {
       return {

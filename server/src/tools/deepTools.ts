@@ -8,11 +8,18 @@
  *
  * Gated by the `deepTools` feature flag.
  * Follows the same pattern as memoryTools.ts.
+ *
+ * Note: Cron tools and Agent tools are in separate files and wired
+ * directly into toolExecutor.ts (gated by their own feature flags).
  */
 
 import { Tool, ToolCall } from '../llm/types';
 import { WEB_SEARCH_TOOL, executeWebSearch } from './webSearch';
 import { WEB_FETCH_TOOL, executeWebFetch } from './webFetch';
+
+// Re-export cron and agent tools for convenience
+export { CRON_TOOLS, isCronTool, executeCronTool } from './cronTools';
+export { AGENT_TOOLS, isAgentTool, executeAgentTool } from './agentTools';
 
 // ============================================================================
 // Tool Definitions

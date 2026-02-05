@@ -17,6 +17,27 @@ import { anyapiServer } from './servers/anyapi';
 import { ccviewServer } from './servers/ccview';
 import { ccexplorerServer } from './servers/ccexplorer';
 import { lighthouseServer } from './servers/lighthouse';
+import { quickbooksServer } from './servers/quickbooks';
+import { googleCalendarServer } from './servers/google-calendar';
+import { slackServer } from './servers/slack';
+import { notionServer } from './servers/notion';
+import { googleSheetsServer } from './servers/google-sheets';
+import { gmailServer } from './servers/gmail';
+// New MCP servers
+import { secEdgarServer } from './servers/sec-edgar';
+import { bitwavePriceServer } from './servers/bitwave-price';
+import { walletBalanceServer } from './servers/wallet-balance';
+import { binanceUSServer } from './servers/binanceus';
+import { krakenServer } from './servers/kraken';
+import { coinbaseServer } from './servers/coinbase';
+import { googleDocsServer } from './servers/google-docs';
+import { plaidServer } from './servers/plaid';
+import { kaikoServer } from './servers/kaiko';
+import { theTieCantonServer } from './servers/thetie-canton';
+import { chatScraperServer } from './servers/chatscraper';
+import { gammaServer } from './servers/gamma';
+import { faamTrackerServer } from './servers/faam-tracker';
+import { traderServer } from './servers/trader';
 
 // Configuration for well-known MCP servers (npm packages)
 export interface WellKnownMCPServer {
@@ -148,9 +169,85 @@ export const WELL_KNOWN_MCP_SERVERS: WellKnownMCPServer[] = [
     id: 'mcp-lighthouse',
     name: 'Lighthouse (CantonLoop)',
     description: 'Query Canton Network via Lighthouse Explorer (lighthouse.cantonloop.com). 28 tools for CNS, contracts, governance, validators, parties, prices, rounds, stats, transactions, transfers. NO API KEY REQUIRED.',
-    npmPackage: '__bundled__', // Special flag: bundled server, not npm
+    npmPackage: '__bundled__',
     category: 'blockchain',
-    envVars: [], // No API key required - public API
+    envVars: [],
+  },
+  // ============================================================================
+  // Finance & Productivity MCP Servers (Custom - AgenticLedger) - BUNDLED
+  // ============================================================================
+  {
+    id: 'quickbooks',
+    name: 'QuickBooks Online',
+    description: 'Query and manage QuickBooks Online data: customers, invoices, bills, accounts, payments, vendors, items, journal entries, and financial reports.',
+    npmPackage: '__bundled__',
+    category: 'finance',
+    envVars: [
+      { name: 'QBO_ACCESS_TOKEN', label: 'Access Token', required: true, tokenField: 'token1' },
+      { name: 'QBO_REFRESH_TOKEN', label: 'Refresh Token', required: true, tokenField: 'token2' },
+      { name: 'QBO_REALM_ID', label: 'Realm ID (Company ID)', required: true, tokenField: 'token3' },
+      { name: 'QBO_CLIENT_ID', label: 'Client ID', required: true, tokenField: 'token4' },
+      { name: 'QBO_CLIENT_SECRET', label: 'Client Secret', required: true, tokenField: 'token5' },
+    ],
+  },
+  {
+    id: 'calendar',
+    name: 'Google Calendar',
+    description: 'List, create, update, and search calendar events. Supports multiple calendars with OAuth2 auto-refresh.',
+    npmPackage: '__bundled__',
+    category: 'productivity',
+    envVars: [
+      { name: 'GCAL_ACCESS_TOKEN', label: 'Access Token', required: true, tokenField: 'token1' },
+      { name: 'GCAL_REFRESH_TOKEN', label: 'Refresh Token', required: true, tokenField: 'token2' },
+      { name: 'GCAL_CLIENT_ID', label: 'Client ID', required: true, tokenField: 'token3' },
+      { name: 'GCAL_CLIENT_SECRET', label: 'Client Secret', required: true, tokenField: 'token4' },
+    ],
+  },
+  {
+    id: 'slack',
+    name: 'Slack',
+    description: 'List channels, read/post messages, reply to threads, search messages, manage reactions, and get user info.',
+    npmPackage: '__bundled__',
+    category: 'communication',
+    envVars: [
+      { name: 'SLACK_BOT_TOKEN', label: 'Bot Token (xoxb-...)', required: true, tokenField: 'token1' },
+    ],
+  },
+  {
+    id: 'notion',
+    name: 'Notion',
+    description: 'Search, read, and manage Notion pages, databases, and blocks. Query databases with filters and sorts.',
+    npmPackage: '__bundled__',
+    category: 'productivity',
+    envVars: [
+      { name: 'NOTION_API_KEY', label: 'Integration Token', required: true, tokenField: 'token1' },
+    ],
+  },
+  {
+    id: 'sheets',
+    name: 'Google Sheets',
+    description: 'Read/write cell ranges, append rows, create spreadsheets, and list sheets. Supports OAuth2 with auto-refresh.',
+    npmPackage: '__bundled__',
+    category: 'productivity',
+    envVars: [
+      { name: 'GSHEETS_ACCESS_TOKEN', label: 'Access Token', required: true, tokenField: 'token1' },
+      { name: 'GSHEETS_REFRESH_TOKEN', label: 'Refresh Token', required: true, tokenField: 'token2' },
+      { name: 'GSHEETS_CLIENT_ID', label: 'Client ID', required: true, tokenField: 'token3' },
+      { name: 'GSHEETS_CLIENT_SECRET', label: 'Client Secret', required: true, tokenField: 'token4' },
+    ],
+  },
+  {
+    id: 'email',
+    name: 'Gmail',
+    description: 'Search, read, send, and reply to emails. Manage labels, threads, and trash. Supports OAuth2 with auto-refresh.',
+    npmPackage: '__bundled__',
+    category: 'communication',
+    envVars: [
+      { name: 'GMAIL_ACCESS_TOKEN', label: 'Access Token', required: true, tokenField: 'token1' },
+      { name: 'GMAIL_REFRESH_TOKEN', label: 'Refresh Token', required: true, tokenField: 'token2' },
+      { name: 'GMAIL_CLIENT_ID', label: 'Client ID', required: true, tokenField: 'token3' },
+      { name: 'GMAIL_CLIENT_SECRET', label: 'Client Secret', required: true, tokenField: 'token4' },
+    ],
   },
 ];
 
@@ -197,11 +294,111 @@ export class MCPServerManager {
     this.activeServers.set('lighthouse', lighthouseServer);
     console.log('[mcp-manager] Registered bundled server: lighthouse (no API key required)');
 
+    // 5. QuickBooks Online
+    await orchestrator.registerServer(quickbooksServer);
+    this.activeServers.set('quickbooks', quickbooksServer);
+    console.log('[mcp-manager] Registered bundled server: quickbooks');
+
+    // 6. Google Calendar
+    await orchestrator.registerServer(googleCalendarServer);
+    this.activeServers.set('google-calendar', googleCalendarServer);
+    console.log('[mcp-manager] Registered bundled server: google-calendar');
+
+    // 7. Slack
+    await orchestrator.registerServer(slackServer);
+    this.activeServers.set('slack', slackServer);
+    console.log('[mcp-manager] Registered bundled server: slack');
+
+    // 8. Notion
+    await orchestrator.registerServer(notionServer);
+    this.activeServers.set('notion', notionServer);
+    console.log('[mcp-manager] Registered bundled server: notion');
+
+    // 9. Google Sheets
+    await orchestrator.registerServer(googleSheetsServer);
+    this.activeServers.set('google-sheets', googleSheetsServer);
+    console.log('[mcp-manager] Registered bundled server: google-sheets');
+
+    // 10. Gmail
+    await orchestrator.registerServer(gmailServer);
+    this.activeServers.set('gmail', gmailServer);
+    console.log('[mcp-manager] Registered bundled server: gmail');
+
+    // 11. SEC EDGAR (public API, no auth)
+    await orchestrator.registerServer(secEdgarServer);
+    this.activeServers.set('sec-edgar', secEdgarServer);
+    console.log('[mcp-manager] Registered bundled server: sec-edgar');
+
+    // 12. Bitwave Price
+    await orchestrator.registerServer(bitwavePriceServer);
+    this.activeServers.set('bitwave-price', bitwavePriceServer);
+    console.log('[mcp-manager] Registered bundled server: bitwave-price');
+
+    // 13. Wallet Balance
+    await orchestrator.registerServer(walletBalanceServer);
+    this.activeServers.set('wallet-balance', walletBalanceServer);
+    console.log('[mcp-manager] Registered bundled server: wallet-balance');
+
+    // 14. BinanceUS
+    await orchestrator.registerServer(binanceUSServer);
+    this.activeServers.set('binanceus', binanceUSServer);
+    console.log('[mcp-manager] Registered bundled server: binanceus');
+
+    // 15. Kraken
+    await orchestrator.registerServer(krakenServer);
+    this.activeServers.set('kraken', krakenServer);
+    console.log('[mcp-manager] Registered bundled server: kraken');
+
+    // 16. Coinbase
+    await orchestrator.registerServer(coinbaseServer);
+    this.activeServers.set('coinbase', coinbaseServer);
+    console.log('[mcp-manager] Registered bundled server: coinbase');
+
+    // 17. Google Docs
+    await orchestrator.registerServer(googleDocsServer);
+    this.activeServers.set('google-docs', googleDocsServer);
+    console.log('[mcp-manager] Registered bundled server: google-docs');
+
+    // 18. Plaid
+    await orchestrator.registerServer(plaidServer);
+    this.activeServers.set('plaid', plaidServer);
+    console.log('[mcp-manager] Registered bundled server: plaid');
+
+    // 19. Kaiko
+    await orchestrator.registerServer(kaikoServer);
+    this.activeServers.set('kaiko', kaikoServer);
+    console.log('[mcp-manager] Registered bundled server: kaiko');
+
+    // 20. TheTie Canton
+    await orchestrator.registerServer(theTieCantonServer);
+    this.activeServers.set('thetie-canton', theTieCantonServer);
+    console.log('[mcp-manager] Registered bundled server: thetie-canton');
+
+    // 21. ChatScraper
+    await orchestrator.registerServer(chatScraperServer);
+    this.activeServers.set('chatscraper', chatScraperServer);
+    console.log('[mcp-manager] Registered bundled server: chatscraper');
+
+    // 22. Gamma
+    await orchestrator.registerServer(gammaServer);
+    this.activeServers.set('gamma', gammaServer);
+    console.log('[mcp-manager] Registered bundled server: gamma');
+
+    // 23. FAAM Tracker
+    await orchestrator.registerServer(faamTrackerServer);
+    this.activeServers.set('faam-tracker', faamTrackerServer);
+    console.log('[mcp-manager] Registered bundled server: faam-tracker');
+
+    // 24. Trader
+    await orchestrator.registerServer(traderServer);
+    this.activeServers.set('trader', traderServer);
+    console.log('[mcp-manager] Registered bundled server: trader');
+
     // Load any existing API keys from database for bundled servers
     await this.loadBundledServerTokens();
 
     this.initialized = true;
-    console.log('[mcp-manager] MCP Server Manager initialized with 4 bundled servers');
+    console.log('[mcp-manager] MCP Server Manager initialized with 24 bundled servers');
   }
 
   /**
@@ -209,17 +406,24 @@ export class MCPServerManager {
    */
   private async loadBundledServerTokens(): Promise<void> {
     try {
-      // Import capability service here to avoid circular dependencies
       const { capabilityService } = await import('../capabilities');
-
-      // Get tokens for bundled servers using the default-agent ID
-      const bundledCapabilities = ['mcp-ccview', 'mcp-ccexplorer-pro'];
       const defaultAgentId = 'default-agent';
 
-      for (const capId of bundledCapabilities) {
+      // Single-token servers (API key only)
+      const singleTokenCaps = ['mcp-ccview', 'mcp-ccexplorer-pro', 'slack', 'notion', 'bitwave-price', 'wallet-balance', 'kaiko', 'thetie-canton', 'gamma', 'faam-tracker', 'trader'];
+      for (const capId of singleTokenCaps) {
         const tokens = await capabilityService.getCapabilityTokens(defaultAgentId, capId);
         if (tokens?.token1) {
           this.configureBundledServer(capId, tokens.token1);
+        }
+      }
+
+      // Multi-token servers (OAuth2 or dual-key auth)
+      const multiTokenCaps = ['quickbooks', 'calendar', 'sheets', 'email', 'binanceus', 'kraken', 'coinbase', 'google-docs', 'plaid', 'chatscraper'];
+      for (const capId of multiTokenCaps) {
+        const tokens = await capabilityService.getCapabilityTokens(defaultAgentId, capId);
+        if (tokens?.token1) {
+          this.configureBundledServerTokens(capId, tokens);
         }
       }
     } catch (error) {
@@ -260,7 +464,7 @@ export class MCPServerManager {
   }
 
   /**
-   * Configure API key for a bundled MCP server
+   * Configure API key for a bundled MCP server (single-token servers)
    */
   configureBundledServer(serverId: string, apiKey: string): void {
     switch (serverId) {
@@ -273,11 +477,96 @@ export class MCPServerManager {
         console.log(`[mcp-manager] Configured API key for ccexplorer server`);
         break;
       case 'mcp-lighthouse':
-        // No API key required - public API
         console.log(`[mcp-manager] Lighthouse server uses public API (no key needed)`);
+        break;
+      case 'slack':
+        slackServer.setApiKey(apiKey);
+        console.log(`[mcp-manager] Configured token for slack server`);
+        break;
+      case 'notion':
+        notionServer.setApiKey(apiKey);
+        console.log(`[mcp-manager] Configured token for notion server`);
+        break;
+      case 'bitwave-price':
+        bitwavePriceServer.setApiKey(apiKey);
+        console.log(`[mcp-manager] Configured API key for bitwave-price server`);
+        break;
+      case 'wallet-balance':
+        walletBalanceServer.setApiKey(apiKey);
+        console.log(`[mcp-manager] Configured API key for wallet-balance server`);
+        break;
+      case 'kaiko':
+        kaikoServer.setApiKey(apiKey);
+        console.log(`[mcp-manager] Configured API key for kaiko server`);
+        break;
+      case 'thetie-canton':
+        theTieCantonServer.setApiKey(apiKey);
+        console.log(`[mcp-manager] Configured API key for thetie-canton server`);
+        break;
+      case 'gamma':
+        gammaServer.setApiKey(apiKey);
+        console.log(`[mcp-manager] Configured API key for gamma server`);
+        break;
+      case 'faam-tracker':
+        faamTrackerServer.setApiKey(apiKey);
+        console.log(`[mcp-manager] Configured API key for faam-tracker server`);
+        break;
+      case 'trader':
+        traderServer.setApiKey(apiKey);
+        console.log(`[mcp-manager] Configured API key for trader server`);
         break;
       default:
         console.warn(`[mcp-manager] Unknown bundled server: ${serverId}`);
+    }
+  }
+
+  /**
+   * Configure multi-token OAuth servers
+   */
+  configureBundledServerTokens(serverId: string, tokens: { token1?: string; token2?: string; token3?: string; token4?: string; token5?: string }): void {
+    switch (serverId) {
+      case 'quickbooks':
+        quickbooksServer.setTokens(tokens);
+        console.log(`[mcp-manager] Configured OAuth tokens for quickbooks server`);
+        break;
+      case 'calendar':
+        googleCalendarServer.setTokens(tokens);
+        console.log(`[mcp-manager] Configured OAuth tokens for google-calendar server`);
+        break;
+      case 'sheets':
+        googleSheetsServer.setTokens(tokens);
+        console.log(`[mcp-manager] Configured OAuth tokens for google-sheets server`);
+        break;
+      case 'email':
+        gmailServer.setTokens(tokens);
+        console.log(`[mcp-manager] Configured OAuth tokens for gmail server`);
+        break;
+      case 'binanceus':
+        binanceUSServer.setTokens(tokens);
+        console.log(`[mcp-manager] Configured API credentials for binanceus server`);
+        break;
+      case 'kraken':
+        krakenServer.setTokens(tokens);
+        console.log(`[mcp-manager] Configured API credentials for kraken server`);
+        break;
+      case 'coinbase':
+        coinbaseServer.setTokens(tokens);
+        console.log(`[mcp-manager] Configured API credentials for coinbase server`);
+        break;
+      case 'google-docs':
+        googleDocsServer.setTokens(tokens);
+        console.log(`[mcp-manager] Configured OAuth tokens for google-docs server`);
+        break;
+      case 'plaid':
+        plaidServer.setTokens(tokens);
+        console.log(`[mcp-manager] Configured tokens for plaid server`);
+        break;
+      case 'chatscraper':
+        chatScraperServer.setTokens(tokens);
+        console.log(`[mcp-manager] Configured tokens for chatscraper server`);
+        break;
+      default:
+        console.warn(`[mcp-manager] Unknown multi-token server: ${serverId}`);
     }
   }
 
@@ -335,18 +624,30 @@ export class MCPServerManager {
         this.configureBundledServer(capabilityId, apiKey);
       }
 
-      // Return the appropriate bundled server instance
-      switch (capabilityId) {
-        case 'mcp-ccview':
-          return ccviewServer;
-        case 'mcp-ccexplorer-pro':
-          return ccexplorerServer;
-        case 'mcp-lighthouse':
-          return lighthouseServer; // No API key needed
-        default:
-          console.error(`[mcp-manager] Unknown bundled server: ${capabilityId}`);
-          return null;
+      // Multi-token bundled servers — pass all tokens
+      const multiTokenServers = ['quickbooks', 'calendar', 'sheets', 'email'];
+      if (multiTokenServers.includes(capabilityId)) {
+        this.configureBundledServerTokens(capabilityId, env as any);
       }
+
+      // Return the appropriate bundled server instance
+      const bundledServerMap: Record<string, MCPServerInstance> = {
+        'mcp-ccview': ccviewServer,
+        'mcp-ccexplorer-pro': ccexplorerServer,
+        'mcp-lighthouse': lighthouseServer,
+        'quickbooks': quickbooksServer,
+        'calendar': googleCalendarServer,
+        'slack': slackServer,
+        'notion': notionServer,
+        'sheets': googleSheetsServer,
+        'email': gmailServer,
+      };
+
+      const bundledServer = bundledServerMap[capabilityId];
+      if (bundledServer) return bundledServer;
+
+      console.error(`[mcp-manager] Unknown bundled server: ${capabilityId}`);
+      return null;
     }
 
     // Create stdio MCP server config for external npm packages
