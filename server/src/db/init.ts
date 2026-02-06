@@ -603,46 +603,26 @@ export async function initializeDatabase(): Promise<void> {
     // Create all required tables if they don't exist
     await createTablesIfNotExist();
 
-    // Check if embedding column needs migration from text to vector
-    const result = await db.execute(sql`
-      SELECT data_type
-      FROM information_schema.columns
-      WHERE table_name = 'ai_document_chunks'
-        AND column_name = 'embedding'
-    `);
+    // Check if embedding column needs migration from text to vector (only if pgvector available)
+    try {
+      const result = await db.execute(sql`
+        SELECT data_type
+        FROM information_schema.columns
+        WHERE table_name = 'ai_document_chunks'
+          AND column_name = 'embedding'
+      `);
 
-    const columnInfo = result.rows[0] as { data_type: string } | undefined;
+      const columnInfo = result.rows[0] as { data_type: string } | undefined;
 
-    if (columnInfo) {
-      if (columnInfo.data_type === 'text') {
-        console.log('[db] Migrating embedding column from text to vector...');
-
-        // Add temporary vector column
-        await db.execute(sql`
-          ALTER TABLE ai_document_chunks
-          ADD COLUMN IF NOT EXISTS embedding_new vector(1536)
-        `);
-
-        // Migrate existing text embeddings to vector format
-        // This will only work if the text is valid JSON array format
-        await db.execute(sql`
-          UPDATE ai_document_chunks
-          SET embedding_new = embedding::vector
-          WHERE embedding IS NOT NULL
-            AND embedding != ''
-            AND embedding_new IS NULL
-        `);
-
-        // Drop old column and rename new one
-        await db.execute(sql`ALTER TABLE ai_document_chunks DROP COLUMN IF EXISTS embedding`);
-        await db.execute(sql`ALTER TABLE ai_document_chunks RENAME COLUMN embedding_new TO embedding`);
-
-        console.log('[db] Embedding column migrated to vector type');
-      } else {
-        console.log('[db] Embedding column already using vector type');
+      if (columnInfo) {
+        if (columnInfo.data_type === 'text') {
+          console.log('[db] Embedding column is TEXT type — vector migration skipped (pgvector may not be available)');
+        } else {
+          console.log('[db] Embedding column already using vector type');
+        }
       }
-    } else {
-      console.log('[db] ai_document_chunks table does not exist yet - will be created by Drizzle');
+    } catch {
+      console.log('[db] Embedding column check skipped');
     }
 
     // Create index for vector similarity search (if not exists)
@@ -652,8 +632,7 @@ export async function initializeDatabase(): Promise<void> {
       USING ivfflat (embedding vector_cosine_ops)
       WITH (lists = 100)
     `).catch(() => {
-      // IVFFlat requires at least some data to build, use HNSW as fallback
-      console.log('[db] IVFFlat index skipped (requires data), will use HNSW');
+      console.log('[db] IVFFlat index skipped (pgvector not available or requires data)');
     });
 
     console.log('[db] Database initialization complete');
