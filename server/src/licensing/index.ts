@@ -12,6 +12,8 @@
  * Customers must have a valid license key to unlock features.
  */
 
+import fs from 'fs';
+import path from 'path';
 import { FeatureFlags, BASE_FEATURES, setFeatures, getFeatures, isCapabilityAllowed, canCreateAgent } from './features';
 import { validateLicenseKey } from './license';
 
@@ -100,6 +102,23 @@ function loadFeaturesFromEnv(): Partial<FeatureFlags> {
  */
 export function initializeLicensing(): void {
   console.log('[licensing] Initializing...');
+
+  // Priority 0: Load saved license key from data dir (desktop app)
+  const dataDir = process.env.EXPERT_AGENT_DATA_DIR;
+  if (dataDir && !process.env.AGENTICLEDGER_LICENSE_KEY) {
+    const licenseFilePath = path.join(dataDir, 'license.key');
+    try {
+      if (fs.existsSync(licenseFilePath)) {
+        const savedKey = fs.readFileSync(licenseFilePath, 'utf-8').trim();
+        if (savedKey) {
+          process.env.AGENTICLEDGER_LICENSE_KEY = savedKey;
+          console.log('[licensing] Loaded license key from file:', licenseFilePath);
+        }
+      }
+    } catch (err) {
+      console.warn('[licensing] Failed to read license key file:', (err as Error).message);
+    }
+  }
 
   // Priority 1: Check for license key
   const licenseKey = process.env.AGENTICLEDGER_LICENSE_KEY;

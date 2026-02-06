@@ -6,7 +6,15 @@ interface SetupWizardProps {
   apiBaseUrl: string;
 }
 
-type WizardStep = 1 | 2 | 3;
+type WizardStep = 1 | 2 | 3 | 4;
+
+interface LicenseInfo {
+  org?: string;
+  name?: string;
+  tier?: string;
+  expiresAt?: string;
+  features?: Record<string, boolean | number | string[]>;
+}
 
 export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
   const { colors } = useAdminTheme();
@@ -18,17 +26,58 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
   const [error, setError] = useState<string | null>(null);
   const [complete, setComplete] = useState(false);
 
-  // Step 2 - API Keys
+  // Step 2 - License Key
+  const [licenseKey, setLicenseKey] = useState('');
+  const [licenseValid, setLicenseValid] = useState(false);
+  const [licenseInfo, setLicenseInfo] = useState<LicenseInfo | null>(null);
+  const [validatingLicense, setValidatingLicense] = useState(false);
+  const [showLicenseKey, setShowLicenseKey] = useState(false);
+
+  // Step 3 - API Keys
   const [anthropicKey, setAnthropicKey] = useState('');
   const [openaiKey, setOpenaiKey] = useState('');
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
 
-  // Step 3 - Agent
+  // Step 4 - Agent
   const [agentName, setAgentName] = useState('My Agent');
   const [agentDescription, setAgentDescription] = useState('');
 
-  const canProceedStep2 = anthropicKey.trim().length > 0 || openaiKey.trim().length > 0;
+  const canProceedStep3 = anthropicKey.trim().length > 0 || openaiKey.trim().length > 0;
+
+  const handleValidateLicense = async () => {
+    setValidatingLicense(true);
+    setError(null);
+    setLicenseValid(false);
+    setLicenseInfo(null);
+
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/setup/validate-license`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ licenseKey: licenseKey.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.valid) {
+        throw new Error(data.error || 'Invalid license key');
+      }
+
+      setLicenseValid(true);
+      setLicenseInfo({
+        org: data.org,
+        name: data.name,
+        tier: data.tier,
+        expiresAt: data.expiresAt,
+        features: data.features,
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to validate license key');
+    } finally {
+      setValidatingLicense(false);
+    }
+  };
 
   const handleComplete = async () => {
     setSubmitting(true);
@@ -59,9 +108,26 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
     }
   };
 
+  // Eye icon SVG components
+  const EyeOpen = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+
+  const EyeClosed = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+    </svg>
+  );
+
   // Step indicator
   const StepIndicator: React.FC = () => {
-    const steps = [1, 2, 3] as const;
+    const steps = [1, 2, 3, 4] as const;
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 32 }}>
         {steps.map((s, i) => (
@@ -82,7 +148,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
                 transition: 'all 0.3s',
               }}
             >
-              {complete && s <= 3 ? (
+              {complete && s <= 4 ? (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
@@ -106,6 +172,83 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
       </div>
     );
   };
+
+  // Reusable password-style input
+  const SecretInput: React.FC<{
+    value: string;
+    onChange: (v: string) => void;
+    show: boolean;
+    onToggleShow: () => void;
+    placeholder: string;
+    multiline?: boolean;
+  }> = ({ value, onChange, show, onToggleShow, placeholder, multiline }) => (
+    <div style={{ position: 'relative' }}>
+      {multiline ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={3}
+          style={{
+            width: '100%',
+            padding: '12px 44px 12px 16px',
+            borderRadius: 8,
+            border: `1px solid ${colors.border}`,
+            backgroundColor: colors.bgInput,
+            color: colors.text,
+            fontSize: 13,
+            fontFamily: 'monospace',
+            boxSizing: 'border-box',
+            outline: 'none',
+            resize: 'vertical',
+            lineHeight: 1.5,
+          }}
+          onFocus={(e) => (e.currentTarget.style.borderColor = colors.primary)}
+          onBlur={(e) => (e.currentTarget.style.borderColor = colors.border)}
+        />
+      ) : (
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={{
+            width: '100%',
+            padding: '12px 44px 12px 16px',
+            borderRadius: 8,
+            border: `1px solid ${colors.border}`,
+            backgroundColor: colors.bgInput,
+            color: colors.text,
+            fontSize: 14,
+            boxSizing: 'border-box',
+            outline: 'none',
+          }}
+          onFocus={(e) => (e.currentTarget.style.borderColor = colors.primary)}
+          onBlur={(e) => (e.currentTarget.style.borderColor = colors.border)}
+        />
+      )}
+      <button
+        type="button"
+        onClick={onToggleShow}
+        style={{
+          position: 'absolute',
+          right: 8,
+          top: multiline ? 12 : '50%',
+          transform: multiline ? 'none' : 'translateY(-50%)',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: 6,
+          color: colors.textMuted,
+          display: 'flex',
+          alignItems: 'center',
+        }}
+        title={show ? 'Hide' : 'Show'}
+      >
+        {show ? <EyeClosed /> : <EyeOpen />}
+      </button>
+    </div>
+  );
 
   // Success state
   if (complete) {
@@ -236,7 +379,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
               Let's set up your AI assistant in a few quick steps
             </p>
             <p style={{ fontSize: 14, color: colors.textMuted, marginBottom: 32, lineHeight: 1.6 }}>
-              This wizard will help you configure your agent with the AI provider keys it needs to work.
+              You'll need your license key and at least one AI provider API key to get started.
             </p>
 
             <button
@@ -261,8 +404,190 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
           </div>
         )}
 
-        {/* Step 2: API Keys */}
+        {/* Step 2: License Key */}
         {step === 2 && (
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: colors.text, marginBottom: 8 }}>
+              Enter License Key
+            </h1>
+            <p style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 24, lineHeight: 1.5 }}>
+              Paste the license key provided by AgenticLedger to activate your features.
+            </p>
+
+            {/* License Key Input */}
+            <div style={{ marginBottom: 16 }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: colors.text,
+                  marginBottom: 8,
+                }}
+              >
+                License Key
+              </label>
+              <SecretInput
+                value={licenseKey}
+                onChange={(v) => {
+                  setLicenseKey(v);
+                  // Reset validation if key changes
+                  if (licenseValid) {
+                    setLicenseValid(false);
+                    setLicenseInfo(null);
+                  }
+                }}
+                show={showLicenseKey}
+                onToggleShow={() => setShowLicenseKey(!showLicenseKey)}
+                placeholder="eyJhbGciOiJIUzI1NiIsInR5..."
+                multiline
+              />
+            </div>
+
+            {/* Validate button */}
+            {!licenseValid && (
+              <button
+                onClick={handleValidateLicense}
+                disabled={validatingLicense || licenseKey.trim().length === 0}
+                style={{
+                  width: '100%',
+                  padding: '12px 24px',
+                  borderRadius: 8,
+                  border: 'none',
+                  backgroundColor:
+                    validatingLicense || licenseKey.trim().length === 0
+                      ? colors.bgSecondary
+                      : colors.primary,
+                  color:
+                    validatingLicense || licenseKey.trim().length === 0
+                      ? colors.textMuted
+                      : colors.primaryText,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor:
+                    validatingLicense || licenseKey.trim().length === 0
+                      ? 'not-allowed'
+                      : 'pointer',
+                  transition: 'background-color 0.2s',
+                  marginBottom: 16,
+                }}
+                onMouseEnter={(e) => {
+                  if (!validatingLicense && licenseKey.trim().length > 0)
+                    e.currentTarget.style.backgroundColor = colors.primaryHover;
+                }}
+                onMouseLeave={(e) => {
+                  if (!validatingLicense && licenseKey.trim().length > 0)
+                    e.currentTarget.style.backgroundColor = colors.primary;
+                }}
+              >
+                {validatingLicense ? 'Validating...' : 'Validate License'}
+              </button>
+            )}
+
+            {/* License valid info */}
+            {licenseValid && licenseInfo && (
+              <div
+                style={{
+                  padding: '16px',
+                  borderRadius: 8,
+                  backgroundColor: colors.successLight,
+                  border: `1px solid ${colors.success}44`,
+                  marginBottom: 16,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={colors.success} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: colors.success }}>
+                    License Valid
+                  </span>
+                </div>
+                {licenseInfo.org && (
+                  <p style={{ fontSize: 13, color: colors.textSecondary, margin: '4px 0 0' }}>
+                    <strong>Organization:</strong> {licenseInfo.org}
+                  </p>
+                )}
+                {licenseInfo.tier && (
+                  <p style={{ fontSize: 13, color: colors.textSecondary, margin: '4px 0 0' }}>
+                    <strong>Tier:</strong>{' '}
+                    <span style={{ textTransform: 'capitalize' }}>{licenseInfo.tier}</span>
+                  </p>
+                )}
+                {licenseInfo.expiresAt && (
+                  <p style={{ fontSize: 13, color: colors.textSecondary, margin: '4px 0 0' }}>
+                    <strong>Expires:</strong>{' '}
+                    {new Date(licenseInfo.expiresAt).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Error message */}
+            {error && !licenseValid && (
+              <div
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: 8,
+                  backgroundColor: colors.errorLight,
+                  border: `1px solid ${colors.error}33`,
+                  marginBottom: 16,
+                }}
+              >
+                <p style={{ fontSize: 13, color: colors.error, margin: 0 }}>{error}</p>
+              </div>
+            )}
+
+            {/* Navigation buttons */}
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => { setStep(1); setError(null); }}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: 8,
+                  border: `1px solid ${colors.border}`,
+                  backgroundColor: 'transparent',
+                  color: colors.textSecondary,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.bgHover)}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                Back
+              </button>
+              <button
+                onClick={() => { setStep(3); setError(null); }}
+                disabled={!licenseValid}
+                style={{
+                  flex: 1,
+                  padding: '12px 24px',
+                  borderRadius: 8,
+                  border: 'none',
+                  backgroundColor: licenseValid ? colors.primary : colors.bgSecondary,
+                  color: licenseValid ? colors.primaryText : colors.textMuted,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: licenseValid ? 'pointer' : 'not-allowed',
+                  transition: 'background-color 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  if (licenseValid) e.currentTarget.style.backgroundColor = colors.primaryHover;
+                }}
+                onMouseLeave={(e) => {
+                  if (licenseValid) e.currentTarget.style.backgroundColor = colors.primary;
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: API Keys */}
+        {step === 3 && (
           <div>
             <h1 style={{ fontSize: 24, fontWeight: 700, color: colors.text, marginBottom: 8 }}>
               Connect Your AI Provider
@@ -284,59 +609,13 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
               >
                 Anthropic API Key (Claude)
               </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showAnthropicKey ? 'text' : 'password'}
-                  value={anthropicKey}
-                  onChange={(e) => setAnthropicKey(e.target.value)}
-                  placeholder="sk-ant-..."
-                  style={{
-                    width: '100%',
-                    padding: '12px 44px 12px 16px',
-                    borderRadius: 8,
-                    border: `1px solid ${colors.border}`,
-                    backgroundColor: colors.bgInput,
-                    color: colors.text,
-                    fontSize: 14,
-                    boxSizing: 'border-box',
-                    outline: 'none',
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = colors.primary)}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = colors.border)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowAnthropicKey(!showAnthropicKey)}
-                  style={{
-                    position: 'absolute',
-                    right: 8,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 6,
-                    color: colors.textMuted,
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                  title={showAnthropicKey ? 'Hide key' : 'Show key'}
-                >
-                  {showAnthropicKey ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
-                      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
-                    </svg>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
-                </button>
-              </div>
+              <SecretInput
+                value={anthropicKey}
+                onChange={setAnthropicKey}
+                show={showAnthropicKey}
+                onToggleShow={() => setShowAnthropicKey(!showAnthropicKey)}
+                placeholder="sk-ant-..."
+              />
             </div>
 
             {/* OpenAI API Key */}
@@ -352,59 +631,13 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
               >
                 OpenAI API Key (optional, for embeddings)
               </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showOpenaiKey ? 'text' : 'password'}
-                  value={openaiKey}
-                  onChange={(e) => setOpenaiKey(e.target.value)}
-                  placeholder="sk-..."
-                  style={{
-                    width: '100%',
-                    padding: '12px 44px 12px 16px',
-                    borderRadius: 8,
-                    border: `1px solid ${colors.border}`,
-                    backgroundColor: colors.bgInput,
-                    color: colors.text,
-                    fontSize: 14,
-                    boxSizing: 'border-box',
-                    outline: 'none',
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = colors.primary)}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = colors.border)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowOpenaiKey(!showOpenaiKey)}
-                  style={{
-                    position: 'absolute',
-                    right: 8,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 6,
-                    color: colors.textMuted,
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                  title={showOpenaiKey ? 'Hide key' : 'Show key'}
-                >
-                  {showOpenaiKey ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
-                      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
-                    </svg>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
-                </button>
-              </div>
+              <SecretInput
+                value={openaiKey}
+                onChange={setOpenaiKey}
+                show={showOpenaiKey}
+                onToggleShow={() => setShowOpenaiKey(!showOpenaiKey)}
+                placeholder="sk-..."
+              />
             </div>
 
             {/* Note */}
@@ -425,7 +658,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
             {/* Navigation buttons */}
             <div style={{ display: 'flex', gap: 12 }}>
               <button
-                onClick={() => setStep(1)}
+                onClick={() => setStep(2)}
                 style={{
                   padding: '12px 24px',
                   borderRadius: 8,
@@ -443,25 +676,25 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
                 Back
               </button>
               <button
-                onClick={() => setStep(3)}
-                disabled={!canProceedStep2}
+                onClick={() => setStep(4)}
+                disabled={!canProceedStep3}
                 style={{
                   flex: 1,
                   padding: '12px 24px',
                   borderRadius: 8,
                   border: 'none',
-                  backgroundColor: canProceedStep2 ? colors.primary : colors.bgSecondary,
-                  color: canProceedStep2 ? colors.primaryText : colors.textMuted,
+                  backgroundColor: canProceedStep3 ? colors.primary : colors.bgSecondary,
+                  color: canProceedStep3 ? colors.primaryText : colors.textMuted,
                   fontSize: 14,
                   fontWeight: 600,
-                  cursor: canProceedStep2 ? 'pointer' : 'not-allowed',
+                  cursor: canProceedStep3 ? 'pointer' : 'not-allowed',
                   transition: 'background-color 0.2s',
                 }}
                 onMouseEnter={(e) => {
-                  if (canProceedStep2) e.currentTarget.style.backgroundColor = colors.primaryHover;
+                  if (canProceedStep3) e.currentTarget.style.backgroundColor = colors.primaryHover;
                 }}
                 onMouseLeave={(e) => {
-                  if (canProceedStep2) e.currentTarget.style.backgroundColor = colors.primary;
+                  if (canProceedStep3) e.currentTarget.style.backgroundColor = colors.primary;
                 }}
               >
                 Next
@@ -470,8 +703,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
           </div>
         )}
 
-        {/* Step 3: Create Your Agent */}
-        {step === 3 && (
+        {/* Step 4: Create Your Agent */}
+        {step === 4 && (
           <div>
             <h1 style={{ fontSize: 24, fontWeight: 700, color: colors.text, marginBottom: 8 }}>
               Name Your Agent
@@ -572,7 +805,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
             {/* Navigation buttons */}
             <div style={{ display: 'flex', gap: 12 }}>
               <button
-                onClick={() => setStep(2)}
+                onClick={() => setStep(3)}
                 disabled={submitting}
                 style={{
                   padding: '12px 24px',

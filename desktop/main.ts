@@ -38,13 +38,8 @@ async function startServer(): Promise<void> {
     EXPERT_AGENT_DATA_DIR: dataDir,
     PORT: SERVER_PORT,
     NODE_ENV: IS_DEV ? 'development' : 'production',
-    // Desktop users get all features without a license key
-    AGENTICLEDGER_DEV_MODE: 'true',
-    FEATURE_SOUL_MEMORY: 'true',
-    FEATURE_DEEP_TOOLS: 'true',
-    FEATURE_MCP_HUB: 'true',
-    FEATURE_CUSTOM_BRANDING: 'true',
-    FEATURE_MULTIMODAL: 'true',
+    // License key is loaded from {dataDir}/license.key by the server on startup.
+    // No dev mode bypass — customers must enter a valid license key in the setup wizard.
   };
 
   if (IS_DEV) {
