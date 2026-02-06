@@ -31,4 +31,4 @@ sqlite.pragma('busy_timeout = 5000');
 export const db = drizzle(sqlite);
 
 // Expose raw sqlite handle for init.ts to run DDL
-export const rawSqlite = sqlite;
+export const rawSqlite: any = sqlite;

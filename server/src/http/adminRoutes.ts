@@ -891,8 +891,8 @@ adminRouter.get('/agents/:agentId/folders', async (req, res) => {
     // Build tree structure
     const buildTree = (parentId: number | null): any[] => {
       return rows
-        .filter((f) => f.parentId === parentId)
-        .map((folder) => ({
+        .filter((f: any) => f.parentId === parentId)
+        .map((folder: any) => ({
           ...folder,
           children: buildTree(folder.id),
         }));
@@ -1290,7 +1290,7 @@ adminRouter.get('/agents/:agentId/documents', async (req, res) => {
 
     // Get tags for each document
     const docsWithTags = await Promise.all(
-      docs.map(async (doc) => {
+      docs.map(async (doc: any) => {
         const docTags = await db
           .select({
             id: tags.id,

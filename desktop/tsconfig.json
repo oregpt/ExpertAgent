@@ -9,7 +9,10 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "declaration": false,
-    "sourceMap": true
+    "sourceMap": true,
+    "types": ["node"],
+    "baseUrl": "../server/node_modules",
+    "typeRoots": ["../server/node_modules/@types", "../server/node_modules"]
   },
   "include": ["*.ts"],
   "exclude": ["dist"]

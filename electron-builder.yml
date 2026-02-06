@@ -1,24 +1,35 @@
 appId: com.agenticledger.expert-agent
 productName: Expert Agent
+electronVersion: "40.2.1"
 directories:
   output: dist-desktop
 files:
   - desktop/dist/**
+  - desktop/assets/**
   - server/dist/**
-  - web/dist/**
-  - node_modules/**
+  - server/public/**
+  - server/node_modules/**
+  - server/package.json
+  - package.json
   - "!**/node_modules/.cache/**"
+  - "!**/node_modules/electron/**"
+  - "!**/node_modules/electron-builder/**"
+  - "!**/node_modules/@electron/**"
+  - "!**/*.ts"
+  - "!**/*.map"
+icon: desktop/assets/icon.png
 win:
   target: nsis
-  icon: desktop/assets/icon.ico
+  signAndEditExecutable: false
 mac:
   target: dmg
-  icon: desktop/assets/icon.icns
 linux:
   target: AppImage
-  icon: desktop/assets/icon.png
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
+asar: true
+extraMetadata:
+  main: desktop/dist/main.js

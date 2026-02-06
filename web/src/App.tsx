@@ -5,6 +5,7 @@ import { KnowledgeBaseManager } from './KnowledgeBaseManager';
 import { Capabilities } from './pages/Capabilities';
 import { Configuration } from './pages/Configuration';
 import { Tools } from './pages/Tools';
+import { SetupWizard } from './pages/SetupWizard';
 import { AgentTheme, defaultTheme } from './theme';
 import { AdminThemeProvider, useAdminTheme, ThemeToggle } from './AdminThemeContext';
 
@@ -41,9 +42,71 @@ const NavLink: React.FC<NavLinkProps> = ({ href, children }) => {
   );
 };
 
+// Redirect to setup wizard when setup is not complete
+const AdminSetupRedirect: React.FC = () => {
+  const [, navigate] = useLocation();
+  useEffect(() => {
+    navigate('/setup');
+  }, [navigate]);
+  return null;
+};
+
 const AppContent: React.FC = () => {
   const theme: AgentTheme = defaultTheme;
   const { colors } = useAdminTheme();
+  const [location] = useLocation();
+  const [setupChecked, setSetupChecked] = useState(false);
+  const [setupComplete, setSetupComplete] = useState(true); // default true to avoid flash
+
+  // Check setup status on mount
+  useEffect(() => {
+    const checkSetup = async () => {
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/setup/status`);
+        if (res.ok) {
+          const data = await res.json();
+          setSetupComplete(data.setupComplete);
+        }
+      } catch {
+        // If server not ready yet, assume setup complete to avoid blocking
+      } finally {
+        setSetupChecked(true);
+      }
+    };
+    checkSetup();
+  }, []);
+
+  // Show setup wizard if not complete (and not already on /setup)
+  if (setupChecked && !setupComplete && location !== '/setup') {
+    return (
+      <AdminSetupRedirect />
+    );
+  }
+
+  // Show nothing while checking (prevents flash)
+  if (!setupChecked) {
+    return (
+      <div style={{ minHeight: '100vh', background: colors.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: colors.textSecondary, fontSize: 14 }}>Loading...</div>
+      </div>
+    );
+  }
+
+  // Setup wizard gets its own full-screen layout (no header/nav)
+  if (location === '/setup') {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: colors.bgSecondary,
+          color: colors.text,
+          fontFamily: theme.fontFamily,
+        }}
+      >
+        <SetupWizard apiBaseUrl={apiBaseUrl} />
+      </div>
+    );
+  }
 
   return (
     <div

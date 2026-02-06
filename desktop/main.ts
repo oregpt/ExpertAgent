@@ -37,6 +37,14 @@ async function startServer(): Promise<void> {
     IS_DESKTOP: 'true',
     EXPERT_AGENT_DATA_DIR: dataDir,
     PORT: SERVER_PORT,
+    NODE_ENV: IS_DEV ? 'development' : 'production',
+    // Desktop users get all features without a license key
+    AGENTICLEDGER_DEV_MODE: 'true',
+    FEATURE_SOUL_MEMORY: 'true',
+    FEATURE_DEEP_TOOLS: 'true',
+    FEATURE_MCP_HUB: 'true',
+    FEATURE_CUSTOM_BRANDING: 'true',
+    FEATURE_MULTIMODAL: 'true',
   };
 
   if (IS_DEV) {

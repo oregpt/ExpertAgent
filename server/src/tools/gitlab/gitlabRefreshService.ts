@@ -214,7 +214,7 @@ export async function getRefreshHistory(agentId: string, limit: number = 20) {
     .limit(limit);
 
   // Reverse to get newest first
-  return rows.reverse().map((r) => ({
+  return rows.reverse().map((r: any) => ({
     id: r.id,
     status: r.status,
     startedAt: r.startedAt,

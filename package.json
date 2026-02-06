@@ -1,12 +1,28 @@
 {
   "name": "agentinabox-v2",
   "version": "2.0.0-alpha.7",
-  "main": "index.js",
+  "main": "desktop/dist/main.js",
   "scripts": {
+    "build:all": "cd web && npm run build && cd ../server && npm run build && cd ../desktop && npx tsc",
+    "copy:web": "node -e \"const fs=require('fs');const path=require('path');function cpdir(s,d){fs.mkdirSync(d,{recursive:true});for(const f of fs.readdirSync(s)){const sp=path.join(s,f),dp=path.join(d,f);fs.statSync(sp).isDirectory()?cpdir(sp,dp):fs.copyFileSync(sp,dp)}}cpdir('web/dist','server/public')\"",
+    "desktop:build": "npm run build:all && npm run copy:web",
+    "desktop:package": "npm run desktop:build && npx electron-builder --win",
+    "desktop:package:mac": "npm run desktop:build && npx electron-builder --mac",
+    "desktop:package:all": "npm run desktop:build && npx electron-builder --win --mac --linux",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["ai", "agent", "enterprise", "multi-tenant", "licensing", "modular"],
+  "keywords": [
+    "ai",
+    "agent",
+    "enterprise",
+    "multi-tenant",
+    "licensing",
+    "modular"
+  ],
   "author": "AgenticLedger",
   "license": "PROPRIETARY",
-  "description": "Agent-in-a-Box v2 — Enterprise AI agent platform with soul, memory, proactive behavior, and multi-channel delivery. Every capability independently toggleable via license flags."
+  "description": "Agent-in-a-Box v2 — Enterprise AI agent platform with soul, memory, proactive behavior, and multi-channel delivery. Every capability independently toggleable via license flags.",
+  "devDependencies": {
+    "electron": "^40.2.1"
+  }
 }

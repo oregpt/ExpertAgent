@@ -17,7 +17,10 @@ import { requireAuth } from '../middleware/auth';
 import { chatLimiter, apiLimiter } from '../middleware/rateLimit';
 import { logger } from '../utils/logger';
 import { db } from '../db/client';
-import { sql } from 'drizzle-orm';
+import { agents } from '../db/schema';
+import { eq, sql } from 'drizzle-orm';
+import { ensureDefaultAgent } from '../chat/chatService';
+import { capabilityService } from '../capabilities';
 
 // Ensure uploads directory exists
 const uploadsPath = path.join(__dirname, '../../uploads');
@@ -112,6 +115,77 @@ export function createHttpApp() {
       mcpHub: features.mcpHub,
       soulMemory: features.soulMemory,
     });
+  });
+
+  // ==========================================================================
+  // Setup Endpoints (no auth — needed on first run before API_KEY exists)
+  // ==========================================================================
+
+  // Check whether initial setup is complete
+  app.get('/api/setup/status', async (_req: Request, res: Response) => {
+    try {
+      // Check if at least one agent exists
+      const agentRows = await db.select().from(agents).limit(1);
+      const hasAgent = agentRows.length > 0;
+
+      // Check if that agent has at least one LLM API key configured
+      let hasApiKey = false;
+      if (hasAgent) {
+        const agentId = agentRows[0].id as string;
+        const keyStatus = await capabilityService.getAgentApiKeysStatus(agentId);
+        hasApiKey = keyStatus.some((k) => k.configured || k.fromEnv);
+      }
+
+      const setupComplete = hasAgent && hasApiKey;
+
+      res.json({ setupComplete, hasAgent, hasApiKey });
+    } catch (err) {
+      logger.error('Setup status check failed', { error: (err as Error).message });
+      res.status(500).json({ error: 'Failed to check setup status' });
+    }
+  });
+
+  // Complete initial setup: create default agent + save API keys
+  app.post('/api/setup/complete', async (req: Request, res: Response) => {
+    try {
+      const { agentName, agentDescription, anthropicApiKey, openaiApiKey } = req.body as {
+        agentName: string;
+        agentDescription?: string;
+        anthropicApiKey?: string;
+        openaiApiKey?: string;
+      };
+
+      if (!agentName || typeof agentName !== 'string') {
+        return res.status(400).json({ error: 'agentName is required' });
+      }
+
+      if (!anthropicApiKey && !openaiApiKey) {
+        return res.status(400).json({ error: 'At least one API key (anthropicApiKey or openaiApiKey) is required' });
+      }
+
+      // Create or get the default agent
+      const agentId = await ensureDefaultAgent();
+
+      // Update agent name/description if provided
+      const patch: Record<string, string> = { name: agentName };
+      if (agentDescription) {
+        patch.description = agentDescription;
+      }
+      await db.update(agents).set(patch).where(eq(agents.id, agentId));
+
+      // Save API keys using the same pattern as adminRoutes
+      if (anthropicApiKey) {
+        await capabilityService.setAgentApiKey(agentId, 'anthropic_api_key', anthropicApiKey);
+      }
+      if (openaiApiKey) {
+        await capabilityService.setAgentApiKey(agentId, 'openai_api_key', openaiApiKey);
+      }
+
+      res.json({ success: true, agentId });
+    } catch (err) {
+      logger.error('Setup completion failed', { error: (err as Error).message });
+      res.status(500).json({ error: 'Failed to complete setup' });
+    }
   });
 
   // ==========================================================================

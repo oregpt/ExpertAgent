@@ -413,7 +413,7 @@ export class MCPServerManager {
       
       // Get all agent IDs, with default-agent first
       const allAgents = await db.select({ id: agents.id }).from(agents);
-      const agentIds = ['default-agent', ...allAgents.map(a => a.id).filter(id => id !== 'default-agent')];
+      const agentIds = ['default-agent', ...allAgents.map((a: any) => a.id).filter((id: any) => id !== 'default-agent')];
 
       // Helper to find first agent with valid tokens
       const findTokens = async (capId: string, requireAll4 = false) => {
