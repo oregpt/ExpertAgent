@@ -12,6 +12,7 @@ import { eq, and, isNull, sql, inArray } from 'drizzle-orm';
 import { getFeatures, canCreateAgent, getLicensingStatus, getAgentFeatures, getAgentFeaturesDetailed, invalidateAgentFeaturesCache, V2_FEATURE_KEYS } from '../licensing';
 import type { AgentFeatureOverrides } from '../licensing';
 import { createDefaultDocuments } from '../memory';
+import { dbNow } from '../db/date-utils';
 import {
   getGitLabConnection,
   saveGitLabConnection,
@@ -207,7 +208,7 @@ adminRouter.put('/agents/:agentId', async (req, res) => {
       features?: AgentFeatureOverrides | null;
     };
 
-    const patch: any = { updatedAt: new Date() };
+    const patch: any = { updatedAt: dbNow() };
     if (typeof name === 'string') patch.name = name;
     if (typeof description === 'string') patch.description = description;
     if (typeof instructions === 'string') patch.instructions = instructions;
@@ -273,7 +274,7 @@ adminRouter.put('/agents/:agentId/branding', async (req, res) => {
 
     const rows = (await db
       .update(agents)
-      .set({ branding, updatedAt: new Date() })
+      .set({ branding, updatedAt: dbNow() })
       .where(eq(agents.id, agentId))
       .returning()) as any[];
 
@@ -352,7 +353,7 @@ adminRouter.post('/agents/:agentId/avatar', avatarUpload.single('avatar'), async
 
     await db
       .update(agents)
-      .set({ branding: updatedBranding, updatedAt: new Date() })
+      .set({ branding: updatedBranding, updatedAt: dbNow() })
       .where(eq(agents.id, agentId));
 
     res.json({ success: true, avatarUrl });
@@ -394,7 +395,7 @@ adminRouter.delete('/agents/:agentId/avatar', async (req, res) => {
 
     await db
       .update(agents)
-      .set({ branding: restBranding, updatedAt: new Date() })
+      .set({ branding: restBranding, updatedAt: dbNow() })
       .where(eq(agents.id, agentId));
 
     res.json({ success: true });
@@ -943,7 +944,7 @@ adminRouter.put('/agents/:agentId/folders/:folderId', async (req, res) => {
 
     const updated = await db
       .update(folders)
-      .set({ name: name.trim(), updatedAt: new Date() })
+      .set({ name: name.trim(), updatedAt: dbNow() })
       .where(and(eq(folders.id, parseInt(folderId)), eq(folders.agentId, agentId)))
       .returning();
 
@@ -972,7 +973,7 @@ adminRouter.put('/agents/:agentId/folders/:folderId/move', async (req, res) => {
 
     const updated = await db
       .update(folders)
-      .set({ parentId: parentId || null, updatedAt: new Date() })
+      .set({ parentId: parentId || null, updatedAt: dbNow() })
       .where(and(eq(folders.id, folderIdNum), eq(folders.agentId, agentId)))
       .returning();
 

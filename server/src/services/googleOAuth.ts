@@ -9,6 +9,7 @@ import { db } from '../db/client';
 import { capabilityTokens } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { logger } from '../utils/logger';
+import { dbNow, toDbDate } from '../db/date-utils';
 
 export interface GoogleOAuthConfig {
   clientId: string;
@@ -128,7 +129,7 @@ export class GoogleOAuthService {
     email?: string,
     expiresIn: number = 3600
   ): Promise<void> {
-    const expiresAt = new Date(Date.now() + expiresIn * 1000);
+    const expiresAt = toDbDate(new Date(Date.now() + expiresIn * 1000));
 
     // Check if tokens already exist
     const existing = await db
@@ -152,7 +153,7 @@ export class GoogleOAuthService {
           token2: refreshToken || existingRow.token2, // Keep old refresh if no new one
           token3: email,
           expiresAt,
-          updatedAt: new Date(),
+          updatedAt: dbNow(),
         })
         .where(
           and(
@@ -214,7 +215,7 @@ export class GoogleOAuthService {
           throw new Error('No access token received from refresh');
         }
 
-        const newExpiresAt = new Date(credentials.expiry_date || Date.now() + 3600000);
+        const newExpiresAt = toDbDate(new Date(credentials.expiry_date || Date.now() + 3600000));
 
         // Update stored tokens
         await db
@@ -222,7 +223,7 @@ export class GoogleOAuthService {
           .set({
             token1: credentials.access_token,
             expiresAt: newExpiresAt,
-            updatedAt: new Date(),
+            updatedAt: dbNow(),
           })
           .where(
             and(

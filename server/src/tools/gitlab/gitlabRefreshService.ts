@@ -11,6 +11,7 @@
 import { db } from '../../db/client';
 import { gitlabConnections, gitlabRefreshes, documents, documentChunks, folders } from '../../db/schema';
 import { eq, and } from 'drizzle-orm';
+import { dbNow } from '../../db/date-utils';
 import { GitLabClient } from './gitlabClient';
 import { processFile, type UrlDerivationConfig } from './converters';
 import { ingestFileDocument, deleteDocument } from '../../kb/kbService';
@@ -139,7 +140,7 @@ export async function saveGitLabConnection(
     docsBaseUrl: config.docsBaseUrl || null,
     productContext: config.productContext || null,
     productMappings: config.productMappings || null,
-    updatedAt: new Date(),
+    updatedAt: dbNow(),
   };
 
   // Check if connection exists
@@ -156,7 +157,7 @@ export async function saveGitLabConnection(
     // Insert
     const result = await db
       .insert(gitlabConnections)
-      .values({ ...values, createdAt: new Date() })
+      .values({ ...values, createdAt: dbNow() })
       .returning();
     return result[0];
   }
@@ -369,7 +370,7 @@ export async function executeRefresh(
     .values({
       agentId,
       status: 'running',
-      startedAt: new Date(),
+      startedAt: dbNow(),
     })
     .returning();
 
@@ -547,7 +548,7 @@ export async function executeRefresh(
       .update(gitlabRefreshes)
       .set({
         status: 'completed',
-        completedAt: new Date(),
+        completedAt: dbNow(),
         filesProcessed: totalProcessed,
         filesConverted,
         filesSkipped,
@@ -576,7 +577,7 @@ export async function executeRefresh(
       .update(gitlabRefreshes)
       .set({
         status: 'failed',
-        completedAt: new Date(),
+        completedAt: dbNow(),
         errorMessage,
       })
       .where(eq(gitlabRefreshes.id, refreshId));

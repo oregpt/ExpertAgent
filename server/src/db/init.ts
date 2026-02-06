@@ -1,6 +1,315 @@
 import { db } from './client';
 import { sql } from 'drizzle-orm';
 
+const IS_DESKTOP = process.env.IS_DESKTOP === 'true';
+
+// ============================================================================
+// SQLite Initialization (Desktop Mode)
+// ============================================================================
+
+async function initializeSQLite(): Promise<void> {
+  const { rawSqlite } = require('./client-sqlite');
+
+  const ddl = `
+    CREATE TABLE IF NOT EXISTS ai_agents (
+      id TEXT PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      description TEXT,
+      instructions TEXT,
+      default_model TEXT NOT NULL,
+      model_mode TEXT DEFAULT 'single',
+      allowed_models TEXT,
+      branding TEXT,
+      features TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_documents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL,
+      folder_id INTEGER,
+      category TEXT DEFAULT 'knowledge',
+      title TEXT NOT NULL,
+      source_type TEXT NOT NULL,
+      mime_type TEXT,
+      size INTEGER,
+      storage_path TEXT,
+      metadata TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_document_chunks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      document_id INTEGER NOT NULL,
+      agent_id TEXT NOT NULL,
+      chunk_index INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      embedding TEXT,
+      token_count INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_conversations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL,
+      external_user_id TEXT,
+      title TEXT,
+      channel_type TEXT,
+      channel_id TEXT,
+      session_summary TEXT,
+      message_count INTEGER DEFAULT 0,
+      last_message_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      conversation_id INTEGER NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      metadata TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_capabilities (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      type TEXT NOT NULL,
+      category TEXT,
+      config TEXT,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_agent_capabilities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL,
+      capability_id TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      config TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_capability_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL,
+      capability_id TEXT NOT NULL,
+      token1 TEXT,
+      token2 TEXT,
+      token3 TEXT,
+      token4 TEXT,
+      token5 TEXT,
+      iv TEXT,
+      expires_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_agent_documents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL,
+      doc_type TEXT NOT NULL,
+      doc_key TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_agent_memory_embeddings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL,
+      doc_id INTEGER NOT NULL,
+      chunk_text TEXT NOT NULL,
+      embedding TEXT,
+      line_start INTEGER,
+      line_end INTEGER,
+      content_hash TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_agent_cron_jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL,
+      schedule TEXT NOT NULL,
+      task_text TEXT NOT NULL,
+      model TEXT,
+      enabled INTEGER DEFAULT 1,
+      last_run_at TEXT,
+      next_run_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_agent_heartbeat_config (
+      agent_id TEXT PRIMARY KEY,
+      enabled INTEGER DEFAULT 0,
+      interval_minutes INTEGER DEFAULT 30,
+      checklist TEXT,
+      quiet_hours_start TEXT,
+      quiet_hours_end TEXT,
+      timezone TEXT DEFAULT 'UTC',
+      last_heartbeat_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_agent_task_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL,
+      run_type TEXT NOT NULL,
+      source_id INTEGER,
+      task_text TEXT,
+      status TEXT DEFAULT 'running',
+      result TEXT,
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT,
+      error TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_agent_channels (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL,
+      channel_type TEXT NOT NULL,
+      channel_name TEXT,
+      config TEXT NOT NULL DEFAULT '{}',
+      enabled INTEGER DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_capability_secrets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      capability_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      encrypted_value TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_agent_api_keys (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL,
+      key TEXT NOT NULL,
+      encrypted_value TEXT NOT NULL,
+      iv TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(agent_id, key)
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_folders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL,
+      parent_id INTEGER,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      color TEXT DEFAULT '#6b7280',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(agent_id, name)
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_document_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      document_id INTEGER NOT NULL,
+      tag_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(document_id, tag_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_gitlab_connections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL UNIQUE,
+      project_url TEXT NOT NULL,
+      access_token_encrypted TEXT NOT NULL,
+      token_iv TEXT,
+      branch TEXT DEFAULT 'main',
+      path_filter TEXT DEFAULT '/',
+      file_extensions TEXT,
+      convert_asciidoc INTEGER DEFAULT 1,
+      docs_base_url TEXT,
+      product_context TEXT,
+      product_mappings TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_gitlab_refreshes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'running',
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT,
+      files_processed INTEGER DEFAULT 0,
+      files_converted INTEGER DEFAULT 0,
+      files_skipped INTEGER DEFAULT 0,
+      error_message TEXT,
+      archive_path TEXT,
+      archive_size INTEGER,
+      commit_sha TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `;
+
+  // Execute each statement separately (SQLite doesn't support multi-statement exec in one call)
+  const statements = ddl
+    .split(';')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  for (const stmt of statements) {
+    rawSqlite.exec(stmt + ';');
+  }
+
+  // Create indexes
+  const indexes = [
+    'CREATE INDEX IF NOT EXISTS idx_documents_agent_id ON ai_documents(agent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_documents_folder ON ai_documents(folder_id)',
+    'CREATE INDEX IF NOT EXISTS idx_documents_category ON ai_documents(category)',
+    'CREATE INDEX IF NOT EXISTS idx_document_chunks_document_id ON ai_document_chunks(document_id)',
+    'CREATE INDEX IF NOT EXISTS idx_document_chunks_agent_id ON ai_document_chunks(agent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON ai_messages(conversation_id)',
+    'CREATE INDEX IF NOT EXISTS idx_conversations_agent_id ON ai_conversations(agent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_agent_capabilities_agent ON ai_agent_capabilities(agent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_capability_tokens_agent ON ai_capability_tokens(agent_id, capability_id)',
+    'CREATE INDEX IF NOT EXISTS idx_agent_api_keys_agent ON ai_agent_api_keys(agent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_agent_documents_agent_type ON ai_agent_documents(agent_id, doc_type)',
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_documents_agent_key ON ai_agent_documents(agent_id, doc_key)',
+    'CREATE INDEX IF NOT EXISTS idx_agent_memory_embeddings_agent ON ai_agent_memory_embeddings(agent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_agent_memory_embeddings_doc ON ai_agent_memory_embeddings(doc_id)',
+    'CREATE INDEX IF NOT EXISTS idx_agent_memory_embeddings_hash ON ai_agent_memory_embeddings(doc_id, content_hash)',
+    'CREATE INDEX IF NOT EXISTS idx_cron_agent ON ai_agent_cron_jobs(agent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_task_runs_agent ON ai_agent_task_runs(agent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_channels_agent ON ai_agent_channels(agent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_folders_agent ON ai_folders(agent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_tags_agent ON ai_tags(agent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_document_tags_document ON ai_document_tags(document_id)',
+    'CREATE INDEX IF NOT EXISTS idx_document_tags_tag ON ai_document_tags(tag_id)',
+    'CREATE INDEX IF NOT EXISTS idx_gitlab_connections_agent ON ai_gitlab_connections(agent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_gitlab_refreshes_agent ON ai_gitlab_refreshes(agent_id)',
+  ];
+
+  for (const idx of indexes) {
+    rawSqlite.exec(idx);
+  }
+
+  console.log('[db-sqlite] All 21 tables and indexes created/verified');
+}
+
+// ============================================================================
+// PostgreSQL Initialization (Cloud Mode)
+// ============================================================================
+
 /**
  * Create all required tables if they don't exist
  */
@@ -591,6 +900,19 @@ async function createTablesIfNotExist(): Promise<void> {
  * Initialize database with required extensions and schema updates
  */
 export async function initializeDatabase(): Promise<void> {
+  // Desktop mode: SQLite initialization
+  if (IS_DESKTOP) {
+    try {
+      await initializeSQLite();
+      console.log('[db] SQLite database initialization complete');
+    } catch (error) {
+      console.error('[db] SQLite initialization error:', error);
+      throw error;
+    }
+    return;
+  }
+
+  // Cloud mode: PostgreSQL initialization
   try {
     // Enable pgvector extension (required for vector similarity search)
     try {

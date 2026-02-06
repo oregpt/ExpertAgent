@@ -15,6 +15,7 @@
 import { db } from '../db/client';
 import { conversations, messages } from '../db/schema';
 import { eq, and, desc, gte, isNull, sql } from 'drizzle-orm';
+import { dbNow } from '../db/date-utils';
 
 // ============================================================================
 // Types
@@ -145,8 +146,8 @@ export async function updateSessionActivity(conversationId: number): Promise<voi
     .update(conversations)
     .set({
       messageCount: sql`COALESCE(message_count, 0) + 1`,
-      lastMessageAt: new Date(),
-      updatedAt: new Date(),
+      lastMessageAt: dbNow(),
+      updatedAt: dbNow(),
     })
     .where(eq(conversations.id, conversationId));
 }
@@ -243,7 +244,7 @@ export async function summarizeSession(conversationId: number): Promise<string |
       .update(conversations)
       .set({
         sessionSummary: summary,
-        updatedAt: new Date(),
+        updatedAt: dbNow(),
       })
       .where(eq(conversations.id, conversationId));
 

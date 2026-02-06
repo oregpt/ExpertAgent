@@ -1,8 +1,11 @@
 import OpenAI from 'openai';
 import { db } from '../db/client';
 import { documentChunks, documents } from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, isNotNull } from 'drizzle-orm';
 import { getAgentApiKeyWithFallback } from '../capabilities/capabilityService';
+import { cosineSimilarity } from '../db/vector-utils';
+
+const IS_DESKTOP = process.env.IS_DESKTOP === 'true';
 
 // Fallback API key from environment
 const envApiKey = process.env.OPENAI_API_KEY;
@@ -89,7 +92,9 @@ export async function indexDocument(agentId: string, documentId: number, content
         agentId,
         chunkIndex: index,
         content: chunk,
-        embedding, // Store as number[] - Drizzle custom type handles conversion to pgvector
+        // pg: number[] → custom type handles toDriver conversion
+        // SQLite: JSON-stringify to store as TEXT
+        embedding: IS_DESKTOP ? JSON.stringify(embedding) : embedding,
         tokenCount: Math.ceil(chunk.length / 4),
       };
     })
@@ -108,12 +113,13 @@ export async function search(
 ): Promise<SimilarChunk[]> {
   const queryEmbedding = await generateEmbedding(query, agentId);
 
-  // Format embedding for pgvector query
+  if (IS_DESKTOP) {
+    return searchSQLite(agentId, queryEmbedding, limit, maxTokens);
+  }
+
+  // PostgreSQL: Use pgvector cosine distance operator (<=>)
   const embeddingStr = `[${queryEmbedding.join(',')}]`;
 
-  // Use pgvector cosine distance operator (<=>)
-  // Lower distance = more similar, so we ORDER BY distance ASC
-  // We fetch extra rows to account for token limiting
   const rows = await db.execute(sql`
     SELECT
       c.id,
@@ -130,10 +136,53 @@ export async function search(
     LIMIT ${limit * 2}
   `);
 
+  return applyTokenLimit(rows.rows as any[], limit, maxTokens);
+}
+
+/**
+ * SQLite search: fetch all chunks with embeddings, compute JS cosine similarity
+ */
+async function searchSQLite(
+  agentId: string,
+  queryEmbedding: number[],
+  limit: number,
+  maxTokens: number
+): Promise<SimilarChunk[]> {
+  // Fetch all chunks for this agent that have embeddings
+  const rows = await db.execute(sql`
+    SELECT
+      c.id,
+      c.document_id,
+      c.content,
+      c.token_count,
+      c.embedding,
+      d.title as source_title
+    FROM ai_document_chunks c
+    LEFT JOIN ai_documents d ON c.document_id = d.id
+    WHERE c.agent_id = ${agentId}
+      AND c.embedding IS NOT NULL
+  `);
+
+  // Compute cosine similarity in JS
+  const scored = (rows.rows as any[])
+    .map((row) => {
+      const docEmbedding: number[] = JSON.parse(row.embedding);
+      return {
+        ...row,
+        similarity: cosineSimilarity(queryEmbedding, docEmbedding),
+      };
+    })
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, limit * 2);
+
+  return applyTokenLimit(scored, limit, maxTokens);
+}
+
+function applyTokenLimit(rows: any[], limit: number, maxTokens: number): SimilarChunk[] {
   const results: SimilarChunk[] = [];
   let tokens = 0;
 
-  for (const row of rows.rows as any[]) {
+  for (const row of rows) {
     const t = row.token_count || Math.ceil((row.content?.length || 0) / 4);
     if (results.length < limit && tokens + t <= maxTokens) {
       results.push({

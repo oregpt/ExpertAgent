@@ -11,6 +11,10 @@ import { eq, and, sql } from 'drizzle-orm';
 import { embedDocument, removeDocumentEmbeddings } from './memoryEmbedder';
 import { generateEmbedding } from '../rag/ragService';
 import { DEFAULT_DOCUMENTS } from './defaults';
+import { cosineSimilarity } from '../db/vector-utils';
+import { dbNow } from '../db/date-utils';
+
+const IS_DESKTOP = process.env.IS_DESKTOP === 'true';
 
 // ============================================================================
 // Types
@@ -75,7 +79,7 @@ export async function upsertDocument(
     // Update existing document
     const rows = await db
       .update(agentDocuments)
-      .set({ content, docType, updatedAt: new Date() })
+      .set({ content, docType, updatedAt: dbNow() })
       .where(
         and(
           eq(agentDocuments.agentId, agentId),
@@ -150,8 +154,9 @@ export async function deleteDocument(agentId: string, docKey: string): Promise<b
 // ============================================================================
 
 /**
- * Semantic search across all agent documents using pgvector.
- * Returns the most relevant chunks with metadata.
+ * Semantic search across all agent documents.
+ * Desktop mode: JS cosine similarity on SQLite TEXT embeddings.
+ * Cloud mode: pgvector <=> operator on PostgreSQL.
  */
 export async function searchMemory(
   agentId: string,
@@ -159,6 +164,37 @@ export async function searchMemory(
   topK = 5
 ): Promise<MemorySearchResult[]> {
   const queryEmbedding = await generateEmbedding(query, agentId);
+
+  if (IS_DESKTOP) {
+    // SQLite: fetch all embeddings, compute similarity in JS
+    const rows = await db.execute(sql`
+      SELECT
+        e.chunk_text,
+        e.line_start,
+        e.line_end,
+        e.embedding,
+        d.doc_key,
+        d.doc_type
+      FROM ai_agent_memory_embeddings e
+      JOIN ai_agent_documents d ON e.doc_id = d.id
+      WHERE e.agent_id = ${agentId}
+        AND e.embedding IS NOT NULL
+    `);
+
+    return (rows.rows as any[])
+      .map((r) => ({
+        chunkText: r.chunk_text,
+        docKey: r.doc_key,
+        docType: r.doc_type,
+        similarity: cosineSimilarity(queryEmbedding, JSON.parse(r.embedding)),
+        lineStart: r.line_start,
+        lineEnd: r.line_end,
+      }))
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, topK);
+  }
+
+  // PostgreSQL: use pgvector <=> operator
   const embeddingStr = `[${queryEmbedding.join(',')}]`;
 
   const rows = await db.execute(sql`

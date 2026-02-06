@@ -20,6 +20,7 @@ import type { AgentChannelRow, InboundMessage } from '../channels/types';
 import { requireAuth } from '../middleware/auth';
 import { validate, channelCreateSchema } from '../middleware/validation';
 import { encryptChannelConfig, decryptChannelConfig, maskChannelConfig } from '../utils/encryption';
+import { dbNow } from '../db/date-utils';
 
 export const channelRoutes = Router();
 
@@ -183,7 +184,7 @@ channelRoutes.put('/agents/:id/channels/:channelId', requireAuth, requireMultiCh
     const { channel_name, config, enabled } = req.body;
 
     // Build update object
-    const updateData: any = { updatedAt: new Date() };
+    const updateData: any = { updatedAt: dbNow() };
     if (channel_name !== undefined) updateData.channelName = channel_name;
     if (config !== undefined) updateData.config = encryptChannelConfig(config); // Encrypt before storing
     if (enabled !== undefined) updateData.enabled = enabled;

@@ -8,6 +8,7 @@ import { db } from '../db/client';
 import { capabilityTokens } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { logger } from '../utils/logger';
+import { dbNow, toDbDate } from '../db/date-utils';
 
 export interface QBOAuthConfig {
   clientId: string;
@@ -104,7 +105,7 @@ export class QBOAuthService {
     realmId: string,
     expiresIn: number = 3600
   ): Promise<void> {
-    const expiresAt = new Date(Date.now() + expiresIn * 1000);
+    const expiresAt = toDbDate(new Date(Date.now() + expiresIn * 1000));
 
     // Check if tokens already exist
     const existing = await db
@@ -127,7 +128,7 @@ export class QBOAuthService {
           token2: refreshToken,
           token3: realmId,
           expiresAt,
-          updatedAt: new Date(),
+          updatedAt: dbNow(),
         })
         .where(
           and(
@@ -201,7 +202,7 @@ export class QBOAuthService {
           throw new Error('No access token received from refresh');
         }
 
-        const newExpiresAt = new Date(Date.now() + (newToken.expires_in || 3600) * 1000);
+        const newExpiresAt = toDbDate(new Date(Date.now() + (newToken.expires_in || 3600) * 1000));
 
         // Update stored tokens
         await db
@@ -210,7 +211,7 @@ export class QBOAuthService {
             token1: newToken.access_token,
             token2: newToken.refresh_token || tokenData.token2, // Use new or keep old
             expiresAt: newExpiresAt,
-            updatedAt: new Date(),
+            updatedAt: dbNow(),
           })
           .where(
             and(

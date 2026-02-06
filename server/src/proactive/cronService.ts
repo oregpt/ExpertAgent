@@ -14,6 +14,7 @@ import { eq, and, lte, sql } from 'drizzle-orm';
 import { generateReply, startConversation, appendMessage } from '../chat/chatService';
 import { getFeatures } from '../licensing/features';
 import { getAgentFeatures } from '../licensing/agentFeatures';
+import { toDbDate, dbNow } from '../db/date-utils';
 
 // ============================================================================
 // Types
@@ -69,8 +70,8 @@ export async function createJob(input: CreateCronJobInput): Promise<CronJob> {
       taskText: input.taskText,
       model: input.model || null,
       enabled: input.enabled !== false,
-      nextRunAt: nextRun,
-    })
+      nextRunAt: toDbDate(nextRun),
+    } as any)
     .returning() as any[];
 
   return rows[0] as CronJob;
@@ -90,12 +91,12 @@ export async function updateJob(jobId: number, agentId: string, input: UpdateCro
     nextRunAt = nextRun;
   }
 
-  const updateData: any = { updatedAt: new Date() };
+  const updateData: any = { updatedAt: dbNow() };
   if (input.schedule !== undefined) updateData.schedule = input.schedule;
   if (input.taskText !== undefined) updateData.taskText = input.taskText;
   if (input.model !== undefined) updateData.model = input.model;
   if (input.enabled !== undefined) updateData.enabled = input.enabled;
-  if (nextRunAt) updateData.nextRunAt = nextRunAt;
+  if (nextRunAt) updateData.nextRunAt = toDbDate(nextRunAt);
 
   const rows = await db
     .update(agentCronJobs)
@@ -152,14 +153,14 @@ export async function getJob(jobId: number, agentId: string): Promise<CronJob | 
  * Find all enabled jobs whose next_run_at has passed
  */
 export async function getDueJobs(): Promise<CronJob[]> {
-  const now = new Date();
+  const now = dbNow();
   const rows = await db
     .select()
     .from(agentCronJobs)
     .where(
       and(
         eq(agentCronJobs.enabled, true),
-        lte(agentCronJobs.nextRunAt, now)
+        lte(agentCronJobs.nextRunAt, now as any)
       )
     ) as any[];
 
@@ -206,8 +207,8 @@ export async function executeJob(job: CronJob): Promise<void> {
       .set({
         status: 'completed',
         result: result.reply,
-        completedAt: new Date(),
-      })
+        completedAt: dbNow(),
+      } as any)
       .where(eq(agentTaskRuns.id, runId));
 
     // Update cron job timestamps
@@ -215,10 +216,10 @@ export async function executeJob(job: CronJob): Promise<void> {
     await db
       .update(agentCronJobs)
       .set({
-        lastRunAt: new Date(),
-        nextRunAt: nextRun,
-        updatedAt: new Date(),
-      })
+        lastRunAt: dbNow(),
+        nextRunAt: nextRun ? toDbDate(nextRun) : null,
+        updatedAt: dbNow(),
+      } as any)
       .where(eq(agentCronJobs.id, job.id));
 
     // v2: Broadcast cron results to all enabled channels (if not heartbeat-like)
@@ -244,8 +245,8 @@ export async function executeJob(job: CronJob): Promise<void> {
       .set({
         status: 'failed',
         error,
-        completedAt: new Date(),
-      })
+        completedAt: dbNow(),
+      } as any)
       .where(eq(agentTaskRuns.id, runId));
 
     // Still advance next_run_at so we don't retry failed jobs in a tight loop
@@ -253,10 +254,10 @@ export async function executeJob(job: CronJob): Promise<void> {
     await db
       .update(agentCronJobs)
       .set({
-        lastRunAt: new Date(),
-        nextRunAt: nextRun,
-        updatedAt: new Date(),
-      })
+        lastRunAt: dbNow(),
+        nextRunAt: nextRun ? toDbDate(nextRun) : null,
+        updatedAt: dbNow(),
+      } as any)
       .where(eq(agentCronJobs.id, job.id));
   }
 }

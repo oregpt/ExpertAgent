@@ -12,6 +12,7 @@ import { eq } from 'drizzle-orm';
 import { generateReply, startConversation, appendMessage } from '../chat/chatService';
 import { getFeatures } from '../licensing/features';
 import { getAgentFeatures } from '../licensing/agentFeatures';
+import { dbNow } from '../db/date-utils';
 
 // ============================================================================
 // Types
@@ -64,7 +65,7 @@ export async function upsertConfig(agentId: string, input: UpsertHeartbeatInput)
 
   if (existing) {
     // Update existing config
-    const updateData: any = { updatedAt: new Date() };
+    const updateData: any = { updatedAt: dbNow() };
     if (input.enabled !== undefined) updateData.enabled = input.enabled;
     if (input.intervalMinutes !== undefined) updateData.intervalMinutes = input.intervalMinutes;
     if (input.checklist !== undefined) updateData.checklist = input.checklist;
@@ -225,17 +226,17 @@ export async function executeHeartbeat(agentId: string): Promise<void> {
       .set({
         status: 'completed',
         result: result.reply,
-        completedAt: new Date(),
-      })
+        completedAt: dbNow(),
+      } as any)
       .where(eq(agentTaskRuns.id, runId));
 
     // Update last heartbeat timestamp
     await db
       .update(agentHeartbeatConfig)
       .set({
-        lastHeartbeatAt: new Date(),
-        updatedAt: new Date(),
-      })
+        lastHeartbeatAt: dbNow(),
+        updatedAt: dbNow(),
+      } as any)
       .where(eq(agentHeartbeatConfig.agentId, agentId));
 
     // v2: If the result is NOT "HEARTBEAT_OK", broadcast to all enabled channels
@@ -261,17 +262,17 @@ export async function executeHeartbeat(agentId: string): Promise<void> {
       .set({
         status: 'failed',
         error,
-        completedAt: new Date(),
-      })
+        completedAt: dbNow(),
+      } as any)
       .where(eq(agentTaskRuns.id, runId));
 
     // Still update last heartbeat time to avoid retry storm
     await db
       .update(agentHeartbeatConfig)
       .set({
-        lastHeartbeatAt: new Date(),
-        updatedAt: new Date(),
-      })
+        lastHeartbeatAt: dbNow(),
+        updatedAt: dbNow(),
+      } as any)
       .where(eq(agentHeartbeatConfig.agentId, agentId));
   }
 }

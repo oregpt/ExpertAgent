@@ -40,10 +40,11 @@ const defaultAgent: AgentDefinition = {
 };
 
 export function loadConfig(): AppConfig {
-  const port = Number(process.env.PORT || 4000);
+  const IS_DESKTOP = process.env.IS_DESKTOP === 'true';
+  const port = Number(process.env.PORT || (IS_DESKTOP ? 4100 : 4000));
   const databaseUrl = process.env.DATABASE_URL || '';
 
-  if (!databaseUrl) {
+  if (!databaseUrl && !IS_DESKTOP) {
     console.warn(
       '[agentinabox-config] DATABASE_URL is not set. Set it in your environment before running in production.'
     );

@@ -9,6 +9,7 @@ import { db } from '../db/client';
 import { capabilities, agentCapabilities, capabilityTokens, agentApiKeys } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { Capability } from '../mcp-hub/types';
+import { dbNow } from '../db/date-utils';
 
 // Encryption key from environment (32 bytes for AES-256)
 const ENCRYPTION_KEY = process.env.CAPABILITY_ENCRYPTION_KEY || 'default-32-byte-key-for-dev-only!';
@@ -173,7 +174,7 @@ export class CapabilityService {
     if (existing.length > 0) {
       await db
         .update(agentCapabilities)
-        .set({ enabled: enabled ? 1 : 0, updatedAt: new Date() })
+        .set({ enabled: enabled ? 1 : 0, updatedAt: dbNow() })
         .where(and(eq(agentCapabilities.agentId, agentId), eq(agentCapabilities.capabilityId, capabilityId)));
     } else {
       await db.insert(agentCapabilities).values({
@@ -234,7 +235,7 @@ export class CapabilityService {
           token5: encryptedTokens.token5,
           iv,
           expiresAt,
-          updatedAt: new Date(),
+          updatedAt: dbNow(),
         })
         .where(and(eq(capabilityTokens.agentId, agentId), eq(capabilityTokens.capabilityId, capabilityId)));
     } else {
@@ -749,7 +750,7 @@ export class CapabilityService {
         .set({
           encryptedValue: encrypted,
           iv,
-          updatedAt: new Date(),
+          updatedAt: dbNow(),
         })
         .where(and(eq(agentApiKeys.agentId, agentId), eq(agentApiKeys.key, key)));
     } else {

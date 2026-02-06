@@ -13,6 +13,7 @@ import { agentTaskRuns } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { generateReply, startConversation, appendMessage } from '../chat/chatService';
 import { getFeatures } from '../licensing/features';
+import { dbNow } from '../db/date-utils';
 
 // ============================================================================
 // Types
@@ -87,8 +88,8 @@ export async function spawnTask(
       .set({
         status: 'completed',
         result: result.reply,
-        completedAt: new Date(),
-      })
+        completedAt: dbNow(),
+      } as any)
       .where(eq(agentTaskRuns.id, runId));
 
     console.log(`[background] Task ${runId} completed. Reply length: ${result.reply.length}`);
@@ -108,8 +109,8 @@ export async function spawnTask(
       .set({
         status: 'failed',
         error,
-        completedAt: new Date(),
-      })
+        completedAt: dbNow(),
+      } as any)
       .where(eq(agentTaskRuns.id, runId));
 
     return {

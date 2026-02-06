@@ -96,6 +96,11 @@ async function main() {
     const addr = server.address();
     logger.info('Agent-in-a-Box server started', { port: config.port, address: addr });
     console.log(`[server] HTTP listening on http://0.0.0.0:${config.port}`);
+
+    // Signal to Electron parent process that server is ready
+    if (process.send) {
+      process.send('ready');
+    }
   });
 
   server.on('error', (err: Error) => {

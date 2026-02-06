@@ -15,6 +15,8 @@ import { agentMemoryEmbeddings } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { generateEmbedding } from '../rag/ragService';
 
+const IS_DESKTOP = process.env.IS_DESKTOP === 'true';
+
 /**
  * Generate a SHA-256 hash of chunk content for change detection.
  * Used to skip re-embedding unchanged chunks.
@@ -163,7 +165,8 @@ export async function embedDocument(
         agentId,
         docId,
         chunkText: chunk.text,
-        embedding,
+        // pg: number[] → custom type handles conversion; SQLite: JSON string
+        embedding: IS_DESKTOP ? JSON.stringify(embedding) : embedding,
         lineStart: chunk.lineStart,
         lineEnd: chunk.lineEnd,
         contentHash: chunk.hash,

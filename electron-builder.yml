@@ -1,0 +1,24 @@
+appId: com.agenticledger.expert-agent
+productName: Expert Agent
+directories:
+  output: dist-desktop
+files:
+  - desktop/dist/**
+  - server/dist/**
+  - web/dist/**
+  - node_modules/**
+  - "!**/node_modules/.cache/**"
+win:
+  target: nsis
+  icon: desktop/assets/icon.ico
+mac:
+  target: dmg
+  icon: desktop/assets/icon.icns
+linux:
+  target: AppImage
+  icon: desktop/assets/icon.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
