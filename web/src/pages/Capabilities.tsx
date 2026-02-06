@@ -291,8 +291,8 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
               boxShadow: colors.shadow,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span style={{ fontSize: 16, fontWeight: 600, color: colors.text }}>{cap.name}</span>
                   {cap.category && (
@@ -454,6 +454,7 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
                 onClick={() => toggleCapability(cap)}
                 style={{
                   width: 48,
+                  minWidth: 48,
                   height: 26,
                   borderRadius: 999,
                   border: 'none',
@@ -461,6 +462,7 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
                   cursor: 'pointer',
                   position: 'relative',
                   transition: 'background 0.2s',
+                  flexShrink: 0,
                 }}
               >
                 <div
