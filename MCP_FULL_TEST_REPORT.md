@@ -1,7 +1,7 @@
 # MCP Full Test Report
 
-**Generated:** 2026-02-05T23:55:49.853Z  
-**Duration:** 7.5s  
+**Generated:** 2026-02-06T00:09:24.962Z  
+**Duration:** 7.1s  
 **API Endpoint:** `http://localhost:4501/api/admin/mcp/execute`
 
 ---
@@ -23,7 +23,7 @@
 **Server:** `sec-edgar`  
 **Tool:** `search_filings`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:49.854Z
+**Timestamp:** 2026-02-06T00:09:24.963Z
 
 #### Request Sent
 ```json
@@ -133,7 +133,7 @@ HTTP 200 OK
 **Server:** `bitwave-price`  
 **Tool:** `list_supported_assets`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:50.251Z
+**Timestamp:** 2026-02-06T00:09:25.278Z
 
 #### Request Sent
 ```json
@@ -202,7 +202,7 @@ HTTP 200 OK
 **Server:** `binanceus`  
 **Tool:** `get_ticker_price`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:50.262Z
+**Timestamp:** 2026-02-06T00:09:25.285Z
 
 #### Request Sent
 ```json
@@ -223,13 +223,13 @@ HTTP 200 OK
   "success": true,
   "data": {
     "symbol": "BTCUSDT",
-    "price": 63115.29,
-    "timestamp": "2026-02-05T23:55:50.436Z"
+    "price": 61200,
+    "timestamp": "2026-02-06T00:09:25.378Z"
   },
   "metadata": {
     "server": "binanceus",
     "tool": "get_ticker_price",
-    "executionTime": 164
+    "executionTime": 99
   }
 }
 ```
@@ -242,7 +242,7 @@ HTTP 200 OK
 **Server:** `kraken`  
 **Tool:** `get_ticker`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:50.434Z
+**Timestamp:** 2026-02-06T00:09:25.390Z
 
 #### Request Sent
 ```json
@@ -263,17 +263,17 @@ HTTP 200 OK
   "success": true,
   "data": {
     "pair": "XBTUSD",
-    "ask": 63021.6,
-    "bid": 63021.5,
-    "last": 63021.6,
-    "volume24h": 12097.11434397,
-    "low24h": 62308.2,
+    "ask": 61835,
+    "bid": 61700,
+    "last": 61700,
+    "volume24h": 12379.65087008,
+    "low24h": 61700,
     "high24h": 73156.8
   },
   "metadata": {
     "server": "kraken",
     "tool": "get_ticker",
-    "executionTime": 178
+    "executionTime": 264
   }
 }
 ```
@@ -286,7 +286,7 @@ HTTP 200 OK
 **Server:** `kaiko`  
 **Tool:** `get_direct_price`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:50.619Z
+**Timestamp:** 2026-02-06T00:09:25.660Z
 
 #### Request Sent
 ```json
@@ -310,14 +310,14 @@ HTTP 200 OK
     "baseAsset": "cc",
     "quoteAsset": "usdt",
     "interval": "1d",
-    "price": "0.16529836596727104",
-    "volume": "1.9039586173589352e+08",
-    "timestamp": 1770249600000
+    "price": "0.1622501993845538",
+    "volume": "989775.8734816702",
+    "timestamp": 1770336000000
   },
   "metadata": {
     "server": "kaiko",
     "tool": "get_direct_price",
-    "executionTime": 292
+    "executionTime": 237
   }
 }
 ```
@@ -330,7 +330,7 @@ HTTP 200 OK
 **Server:** `coinbase`  
 **Tool:** `get_spot_price`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:50.916Z
+**Timestamp:** 2026-02-06T00:09:25.903Z
 
 #### Request Sent
 ```json
@@ -351,13 +351,13 @@ HTTP 200 OK
   "success": true,
   "data": {
     "currencyPair": "BTC-USD",
-    "price": 63014.61,
+    "price": 61259,
     "currency": "USD"
   },
   "metadata": {
     "server": "coinbase",
     "tool": "get_spot_price",
-    "executionTime": 192
+    "executionTime": 171
   }
 }
 ```
@@ -370,7 +370,7 @@ HTTP 200 OK
 **Server:** `thetie-canton`  
 **Tool:** `get_cumulative_metrics`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:51.112Z
+**Timestamp:** 2026-02-06T00:09:26.082Z
 
 #### Request Sent
 ```json
@@ -391,7 +391,7 @@ HTTP 200 OK
     "status": "success",
     "code": 200,
     "metadata": {
-      "timestamp": "2026-02-05T23:55:52.606Z",
+      "timestamp": "2026-02-06T00:09:27.846Z",
       "version": "3.0",
       "pagination": {
         "limit": 100,
@@ -481,7 +481,7 @@ HTTP 200 OK
 **Server:** `lighthouse`  
 **Tool:** `price_get`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:52.565Z
+**Timestamp:** 2026-02-06T00:09:27.780Z
 
 #### Request Sent
 ```json
@@ -499,12 +499,12 @@ HTTP 200 OK
 {
   "success": true,
   "data": {
-    "price": 0.16174715636989415
+    "price": 0.16191023543030011
   },
   "metadata": {
     "server": "lighthouse",
     "tool": "price_get",
-    "executionTime": 932
+    "executionTime": 516
   }
 }
 ```
@@ -517,7 +517,7 @@ HTTP 200 OK
 **Server:** `ccview`  
 **Tool:** `explore_stats`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:53.503Z
+**Timestamp:** 2026-02-06T00:09:28.302Z
 
 #### Request Sent
 ```json
@@ -535,13 +535,13 @@ HTTP 200 OK
 {
   "success": true,
   "data": {
-    "cc_price": "0.16173125783278805",
-    "total_supply": "37678699141.4680006373",
-    "market_cap": "6093823405.6528109529071404742",
-    "volume": "130674282.6160484201",
-    "volume_gain_percentage": 0.20378975149553036,
-    "latest_round": 82253,
-    "updates_count": 133883147,
+    "cc_price": "0.16191023543030011",
+    "total_supply": "37678820184.7071465680",
+    "market_cap": "6100586646.8418779771540289660",
+    "volume": "219402883.1541925739",
+    "volume_gain_percentage": 0.6790058362045844,
+    "latest_round": 82254,
+    "updates_count": 133890733,
     "migration": 4,
     "version": "0.5.9",
     "total_parties": 278955,
@@ -549,15 +549,15 @@ HTTP 200 OK
     "validator_count": 815,
     "featured_apps_count": 113,
     "fee_accumulated": "76417276.9508431753",
-    "total_transfer_count": 96679902,
-    "total_governance_vote_count": 288,
-    "total_rewards": "37837862690.2262748539",
-    "total_rewards_missed": "1212042053.3094585960"
+    "total_transfer_count": 96684171,
+    "total_governance_vote_count": 290,
+    "total_rewards": "37838039757.4838756414",
+    "total_rewards_missed": "1212056403.2158984828"
   },
   "metadata": {
     "server": "ccview",
     "tool": "explore_stats",
-    "executionTime": 735
+    "executionTime": 695
   }
 }
 ```
@@ -570,7 +570,7 @@ HTTP 200 OK
 **Server:** `ccexplorer`  
 **Tool:** `overview_get`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:54.249Z
+**Timestamp:** 2026-02-06T00:09:29.005Z
 
 #### Request Sent
 ```json
@@ -591,14 +591,14 @@ HTTP 200 OK
     "activeValidators": 737,
     "superValidators": 13,
     "supply": "37678131258.7132847917",
-    "consensusHeight": "13616569",
+    "consensusHeight": "13618976",
     "version": "0.5.6",
     "featuredApps": 113,
     "openVotes": [
       {
         "status": "in_progress",
         "template_id": "996a3b619d6b65ca7812881978c44c650cac119de78f5317d1f317658943001c:Splice.DsoRules:VoteRequest",
-        "contract_id": "003c732ea3b7351211870783119d90e39d1cba2ccda3f5b5ae916f40290832ffb6ca1212201c1a0ad4c33f48813b2b0cdcf8d803d0296343ea02c2b5d4939378b914352b07",
+        "contract_id": "00a456edf57cc43379fff0afccfba3ed58be25c0421a2b302d453b2fb2942b9979ca121220312143c38bf9a37a8f767988d33cf58046ca900e011c75c695ad677d62f771b6",
         "payload": {
           "dso": "DSO::1220b1431ef217342db44d516bb9befde802be7d8899637d290895fa58880f19accc",
           "votes": [
@@ -612,25 +612,15 @@ HTTP 200 OK
             [
               "Cumberland-1",
               {
-                "sv": "Cumberland-1::12201aa8a23046d5740c9edd58f7e820c83e7f5c58f25551f955f3252d3a04240860",
-                "accept": true,
-                "reason": {
-                  "url": "",
-                  "body": ""
-                },
-                "optCastAt": "2026-02-05T20:14:02.636327Z"
+                "sv": "Cumberland-1",
+                "accept": null
               }
             ],
             [
               "Cumberland-2",
               {
-                "sv": "Cumberland-2::1220120801da0994334c869a6db19d9321f3d5baf9e40377830a90c2af78658aede6",
-                "accept": true,
-                "reason": {
-                  "url": "",
-                  "body": ""
-                },
-                "optCastAt": "2026-02-05T20:14:16.235913Z"
+                "sv": "Cumberland-2",
+                "accept": null
               }
             ],
             [
@@ -646,7 +636,22 @@ HTTP 200 OK
                 "sv": "Digital-Asset-2",
                 "accept": null
               }
-    
+            ],
+            [
+              "Five-North-1",
+              {
+                "sv": "Five-North-1",
+                "accept": null
+              }
+            ],
+            [
+              "Global-Synchronizer-Foundation",
+              {
+                "sv": "Global-Synchronizer-Foundation::1220b0867964b602f2cc7ea61324a95f000f0060e735cfaf4f23f424fdab02c170ac",
+                "accept": true,
+                "reason": {
+                  "url": "",
+      
 ... (truncated)
 ```
 
@@ -658,7 +663,7 @@ HTTP 200 OK
 **Server:** `wallet-balance`  
 **Tool:** `list_supported_chains`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:54.571Z
+**Timestamp:** 2026-02-06T00:09:29.353Z
 
 #### Request Sent
 ```json
@@ -728,7 +733,7 @@ HTTP 200 OK
   "metadata": {
     "server": "wallet-balance",
     "tool": "list_supported_chains",
-    "executionTime": 1
+    "executionTime": 0
   }
 }
 ```
@@ -741,7 +746,7 @@ HTTP 200 OK
 **Server:** `slack`  
 **Tool:** `list_channels`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:54.575Z
+**Timestamp:** 2026-02-06T00:09:29.357Z
 
 #### Request Sent
 ```json
@@ -838,7 +843,7 @@ HTTP 200 OK
 **Server:** `notion`  
 **Tool:** `search`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:54.743Z
+**Timestamp:** 2026-02-06T00:09:29.552Z
 
 #### Request Sent
 ```json
@@ -864,12 +869,12 @@ HTTP 200 OK
     "has_more": false,
     "type": "page_or_database",
     "page_or_database": {},
-    "request_id": "64fe3804-0cda-44d2-81aa-373c61391a33"
+    "request_id": "de82c020-60da-4717-9c00-e25ef28a8e4b"
   },
   "metadata": {
     "server": "notion",
     "tool": "search",
-    "executionTime": 728
+    "executionTime": 664
   }
 }
 ```
@@ -882,7 +887,7 @@ HTTP 200 OK
 **Server:** `google-calendar`  
 **Tool:** `list_calendars`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:55.477Z
+**Timestamp:** 2026-02-06T00:09:30.223Z
 
 #### Request Sent
 ```json
@@ -971,7 +976,7 @@ HTTP 200 OK
 **Server:** `gmail`  
 **Tool:** `list_labels`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:56.103Z
+**Timestamp:** 2026-02-06T00:09:30.847Z
 
 #### Request Sent
 ```json
@@ -992,7 +997,7 @@ HTTP 200 OK
   "metadata": {
     "server": "gmail",
     "tool": "list_labels",
-    "executionTime": 407
+    "executionTime": 368
   }
 }
 ```
@@ -1000,12 +1005,12 @@ HTTP 200 OK
 
 ---
 
-### ❌ Google Sheets - List sheets
+### ❌ Google Sheets - Auth test (404=OK)
 
 **Server:** `google-sheets`  
 **Tool:** `list_sheets`  
 **Result:** FAIL  
-**Timestamp:** 2026-02-05T23:55:56.515Z
+**Timestamp:** 2026-02-06T00:09:31.219Z
 
 #### Request Sent
 ```json
@@ -1028,7 +1033,7 @@ HTTP 200 OK
   "metadata": {
     "server": "google-sheets",
     "tool": "list_sheets",
-    "executionTime": 424
+    "executionTime": 387
   }
 }
 ```
@@ -1044,12 +1049,12 @@ HTTP 200 OK
 
 ---
 
-### ❌ Google Docs - Get doc
+### ❌ Google Docs - Auth test (404=OK)
 
 **Server:** `google-docs`  
 **Tool:** `get_document`  
 **Result:** FAIL  
-**Timestamp:** 2026-02-05T23:55:56.944Z
+**Timestamp:** 2026-02-06T00:09:31.609Z
 
 #### Request Sent
 ```json
@@ -1072,7 +1077,7 @@ HTTP 200 OK
   "metadata": {
     "server": "google-docs",
     "tool": "get_document",
-    "executionTime": 376
+    "executionTime": 412
   }
 }
 ```
@@ -1086,7 +1091,7 @@ HTTP 200 OK
 **Server:** `quickbooks`  
 **Tool:** `get_company_info`  
 **Result:** FAIL  
-**Timestamp:** 2026-02-05T23:55:57.324Z
+**Timestamp:** 2026-02-06T00:09:32.024Z
 
 #### Request Sent
 ```json
@@ -1107,7 +1112,7 @@ HTTP 200 OK
   "metadata": {
     "server": "quickbooks",
     "tool": "get_company_info",
-    "executionTime": 0
+    "executionTime": 2
   }
 }
 ```
@@ -1121,7 +1126,7 @@ HTTP 200 OK
 **Server:** `plaid`  
 **Tool:** `get_accounts`  
 **Result:** FAIL  
-**Timestamp:** 2026-02-05T23:55:57.328Z
+**Timestamp:** 2026-02-06T00:09:32.030Z
 
 #### Request Sent
 ```json
@@ -1142,7 +1147,7 @@ HTTP 200 OK
   "metadata": {
     "server": "plaid",
     "tool": "get_accounts",
-    "executionTime": 1
+    "executionTime": 0
   }
 }
 ```
@@ -1156,7 +1161,7 @@ HTTP 200 OK
 **Server:** `anyapi`  
 **Tool:** `list_available_apis`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T23:55:57.331Z
+**Timestamp:** 2026-02-06T00:09:32.034Z
 
 #### Request Sent
 ```json
