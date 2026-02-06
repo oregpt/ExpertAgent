@@ -58,7 +58,7 @@ const AppContent: React.FC = () => {
   const [setupChecked, setSetupChecked] = useState(false);
   const [setupComplete, setSetupComplete] = useState(true); // default true to avoid flash
 
-  // Check setup status on mount
+  // Check setup status on mount and when navigating away from /setup
   useEffect(() => {
     const checkSetup = async () => {
       try {
@@ -74,7 +74,7 @@ const AppContent: React.FC = () => {
       }
     };
     checkSetup();
-  }, []);
+  }, [location]);
 
   // Show setup wizard if not complete (and not already on /setup)
   if (setupChecked && !setupComplete && location !== '/setup') {
@@ -149,7 +149,7 @@ const AppContent: React.FC = () => {
             A
           </div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: colors.text }}>Agent-in-a-Box</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: colors.text }}>ExpertAgent</div>
             <div style={{ fontSize: 11, color: colors.textMuted }}>Admin Console</div>
           </div>
         </div>
@@ -478,7 +478,7 @@ const HomePage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 600, margin: '40px auto', textAlign: 'center' }}>
-      <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 16, color: colors.text }}>Welcome to Agent-in-a-Box</h1>
+      <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 16, color: colors.text }}>Welcome to ExpertAgent</h1>
       <p style={{ color: colors.textSecondary, marginBottom: 32, fontSize: 16, lineHeight: 1.6 }}>
         Your AI assistant is ready. Use the navigation above to:
       </p>

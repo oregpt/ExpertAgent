@@ -303,7 +303,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
           </p>
 
           <button
-            onClick={() => navigate('/')}
+            onClick={() => { window.location.href = '/'; }}
             style={{
               padding: '14px 32px',
               borderRadius: 8,
