@@ -12,7 +12,8 @@ import { proactiveRouter } from './proactiveRoutes';
 import { channelRoutes } from './channelRoutes';
 import { oauthRouter } from './oauthRoutes';
 import plaidRoutes from './plaidRoutes';
-import { getFeatures } from '../licensing';
+import { getFeatures, initializeLicensing } from '../licensing';
+import { validateLicenseKey, TIER_PRESETS, LicenseTier } from '../licensing/license';
 import { requireAuth } from '../middleware/auth';
 import { chatLimiter, apiLimiter } from '../middleware/rateLimit';
 import { logger } from '../utils/logger';
@@ -126,6 +127,14 @@ export function createHttpApp() {
   // Check whether initial setup is complete
   app.get('/api/setup/status', async (_req: Request, res: Response) => {
     try {
+      // Check if a valid license key is present
+      const licenseKey = process.env.AGENTICLEDGER_LICENSE_KEY;
+      let hasLicense = false;
+      if (licenseKey) {
+        const licenseResult = validateLicenseKey(licenseKey);
+        hasLicense = licenseResult.valid;
+      }
+
       // Check if at least one agent exists
       const agentRows = await db.select().from(agents).limit(1);
       const hasAgent = agentRows.length > 0;
@@ -138,12 +147,73 @@ export function createHttpApp() {
         hasApiKey = keyStatus.some((k) => k.configured || k.fromEnv);
       }
 
-      const setupComplete = hasAgent && hasApiKey;
+      const setupComplete = hasLicense && hasAgent && hasApiKey;
 
-      res.json({ setupComplete, hasAgent, hasApiKey });
+      res.json({ setupComplete, hasLicense, hasAgent, hasApiKey });
     } catch (err) {
       logger.error('Setup status check failed', { error: (err as Error).message });
       res.status(500).json({ error: 'Failed to check setup status' });
+    }
+  });
+
+  // Validate a license key and save it to disk (for desktop setup wizard)
+  app.post('/api/setup/validate-license', async (req: Request, res: Response) => {
+    try {
+      const { licenseKey } = req.body as { licenseKey?: string };
+
+      if (!licenseKey || typeof licenseKey !== 'string' || licenseKey.trim() === '') {
+        return res.status(400).json({ valid: false, error: 'License key is required' });
+      }
+
+      const result = validateLicenseKey(licenseKey.trim());
+
+      if (!result.valid) {
+        return res.json({ valid: false, error: result.error || 'Invalid license key' });
+      }
+
+      // Determine tier from features
+      let detectedTier: string | undefined;
+      const tiers: LicenseTier[] = ['enterprise', 'pro', 'starter'];
+      for (const tier of tiers) {
+        const preset = TIER_PRESETS[tier];
+        const featureMatch = Object.keys(preset).every(
+          (key) => JSON.stringify((result.features as any)[key]) === JSON.stringify((preset as any)[key])
+        );
+        if (featureMatch) {
+          detectedTier = tier;
+          break;
+        }
+      }
+
+      // Save license key to data dir so it persists across restarts
+      const dataDir = process.env.EXPERT_AGENT_DATA_DIR;
+      if (dataDir) {
+        const fsSync = require('fs');
+        const pathMod = require('path');
+        const licenseFilePath = pathMod.join(dataDir, 'license.key');
+        try {
+          fsSync.writeFileSync(licenseFilePath, licenseKey.trim(), 'utf-8');
+          logger.info('License key saved to disk', { path: licenseFilePath });
+        } catch (writeErr) {
+          logger.warn('Failed to save license key to disk', { error: (writeErr as Error).message });
+        }
+      }
+
+      // Re-initialize licensing with the new key
+      process.env.AGENTICLEDGER_LICENSE_KEY = licenseKey.trim();
+      initializeLicensing();
+
+      res.json({
+        valid: true,
+        org: result.org,
+        name: result.name,
+        tier: detectedTier,
+        expiresAt: result.expiresAt?.toISOString(),
+        features: result.features,
+      });
+    } catch (err) {
+      logger.error('License validation failed', { error: (err as Error).message });
+      res.status(500).json({ valid: false, error: 'Failed to validate license key' });
     }
   });
 
