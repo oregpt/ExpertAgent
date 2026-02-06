@@ -53,19 +53,36 @@ async function createTablesIfNotExist(): Promise<void> {
     )
   `);
 
-  // Document chunks table (with pgvector)
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS ai_document_chunks (
-      id SERIAL PRIMARY KEY,
-      document_id INTEGER NOT NULL,
-      agent_id VARCHAR(64) NOT NULL,
-      chunk_index INTEGER NOT NULL,
-      content TEXT NOT NULL,
-      embedding vector(1536),
-      token_count INTEGER,
-      created_at TIMESTAMP DEFAULT NOW() NOT NULL
-    )
-  `);
+  // Document chunks table (with pgvector if available)
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ai_document_chunks (
+        id SERIAL PRIMARY KEY,
+        document_id INTEGER NOT NULL,
+        agent_id VARCHAR(64) NOT NULL,
+        chunk_index INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        embedding vector(1536),
+        token_count INTEGER,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+  } catch {
+    // Fallback without vector column if pgvector not available
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ai_document_chunks (
+        id SERIAL PRIMARY KEY,
+        document_id INTEGER NOT NULL,
+        agent_id VARCHAR(64) NOT NULL,
+        chunk_index INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        embedding TEXT,
+        token_count INTEGER,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.warn('[db] Created ai_document_chunks without vector type (pgvector not available)');
+  }
 
   // Conversations table
   await db.execute(sql`
@@ -307,18 +324,34 @@ async function createTablesIfNotExist(): Promise<void> {
   `).catch(() => {});
 
   // Agent memory embeddings table (chunked vectors for semantic search)
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS ai_agent_memory_embeddings (
-      id SERIAL PRIMARY KEY,
-      agent_id VARCHAR(64) NOT NULL,
-      doc_id INTEGER NOT NULL REFERENCES ai_agent_documents(id) ON DELETE CASCADE,
-      chunk_text TEXT NOT NULL,
-      embedding vector(1536),
-      line_start INTEGER,
-      line_end INTEGER,
-      created_at TIMESTAMP DEFAULT NOW() NOT NULL
-    )
-  `);
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ai_agent_memory_embeddings (
+        id SERIAL PRIMARY KEY,
+        agent_id VARCHAR(64) NOT NULL,
+        doc_id INTEGER NOT NULL REFERENCES ai_agent_documents(id) ON DELETE CASCADE,
+        chunk_text TEXT NOT NULL,
+        embedding vector(1536),
+        line_start INTEGER,
+        line_end INTEGER,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+  } catch {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ai_agent_memory_embeddings (
+        id SERIAL PRIMARY KEY,
+        agent_id VARCHAR(64) NOT NULL,
+        doc_id INTEGER NOT NULL REFERENCES ai_agent_documents(id) ON DELETE CASCADE,
+        chunk_text TEXT NOT NULL,
+        embedding TEXT,
+        line_start INTEGER,
+        line_end INTEGER,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.warn('[db] Created ai_agent_memory_embeddings without vector type (pgvector not available)');
+  }
 
   // Indexes for memory embeddings
   await db.execute(sql`
@@ -560,8 +593,12 @@ async function createTablesIfNotExist(): Promise<void> {
 export async function initializeDatabase(): Promise<void> {
   try {
     // Enable pgvector extension (required for vector similarity search)
-    await db.execute(sql`CREATE EXTENSION IF NOT EXISTS vector`);
-    console.log('[db] pgvector extension enabled');
+    try {
+      await db.execute(sql`CREATE EXTENSION IF NOT EXISTS vector`);
+      console.log('[db] pgvector extension enabled');
+    } catch (extError) {
+      console.warn('[db] pgvector extension not available — vector features will be disabled. Error:', (extError as Error).message);
+    }
 
     // Create all required tables if they don't exist
     await createTablesIfNotExist();
