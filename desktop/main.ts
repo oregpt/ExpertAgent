@@ -6,7 +6,7 @@
  */
 
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain } from 'electron';
-import { fork, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 
 let serverProcess: ChildProcess | null = null;
@@ -18,11 +18,15 @@ const IS_DEV = !app.isPackaged;
 
 function getServerEntryPath(): string {
   if (IS_DEV) {
-    // In dev, run the TypeScript source directly via ts-node
-    return path.join(__dirname, '..', 'server', 'src', 'index.ts');
+    // In dev, __dirname = desktop/dist/, go up 2 levels to project root
+    // Use compiled JS (not TS) — avoids ts-node/ESM issues with system Node.js
+    return path.join(__dirname, '..', '..', 'server', 'dist', 'index.js');
   }
-  // In production (packaged), __dirname is desktop/dist/, so go up two levels to reach root
-  return path.join(__dirname, '..', '..', 'server', 'dist', 'index.js');
+  // In production (packaged), server is unpacked to app.asar.unpacked
+  // __dirname is inside app.asar/desktop/dist/, but we need app.asar.unpacked/server/dist/
+  const asarPath = path.join(__dirname, '..', '..', 'server', 'dist', 'index.js');
+  // Replace app.asar with app.asar.unpacked for the forked server process
+  return asarPath.replace('app.asar', 'app.asar.unpacked');
 }
 
 async function startServer(): Promise<void> {
@@ -42,31 +46,50 @@ async function startServer(): Promise<void> {
     // No dev mode bypass — customers must enter a valid license key in the setup wizard.
   };
 
+  // Use spawn with system Node.js to avoid ABI mismatch with native modules (better-sqlite3).
+  // Electron's fork() uses Electron's bundled Node, which has a different ABI than
+  // the Node.js that compiled the native modules.
+  const nodePath = process.platform === 'win32' ? 'node.exe' : 'node';
+  
   if (IS_DEV) {
-    // Dev mode: use ts-node to run TypeScript directly
-    const tsNodePath = path.join(__dirname, '..', 'server', 'node_modules', '.bin', 'ts-node');
-    serverProcess = fork(serverEntry, [], {
+    // Dev mode: run compiled JS (same as prod) to avoid ts-node/ESM issues with system Node
+    serverProcess = spawn(nodePath, [serverEntry], {
       env,
-      execArgv: ['--require', 'ts-node/register'],
+      stdio: ['pipe', 'pipe', 'pipe'],
+      shell: false,
     });
   } else {
-    serverProcess = fork(serverEntry, [], { env });
+    serverProcess = spawn(nodePath, [serverEntry], { 
+      env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      shell: false,
+    });
   }
 
-  // Wait for server to signal readiness
-  return new Promise<void>((resolve) => {
-    const timeout = setTimeout(() => {
-      console.warn('[desktop] Server did not signal ready in 10s, continuing...');
-      resolve();
-    }, 10000);
+  // Capture server stdout/stderr for debugging
+  serverProcess.stdout?.on('data', (data: Buffer) => {
+    const output = data.toString().trim();
+    console.log(`[server] ${output}`);
+    // Check for server ready signal in stdout (since we can't use IPC with spawn)
+    if (output.includes('[server] HTTP listening on')) {
+      console.log('[desktop] Server is ready (detected via stdout)');
+      serverReadyResolve?.();
+    }
+  });
+  serverProcess.stderr?.on('data', (data: Buffer) => {
+    console.error(`[server:err] ${data.toString().trim()}`);
+  });
 
-    serverProcess!.on('message', (msg: string) => {
-      if (msg === 'ready') {
-        clearTimeout(timeout);
-        console.log('[desktop] Server is ready');
-        resolve();
-      }
-    });
+  // Wait for server to signal readiness via stdout
+  let serverReadyResolve: (() => void) | null = null;
+  
+  return new Promise<void>((resolve) => {
+    serverReadyResolve = resolve;
+    
+    const timeout = setTimeout(() => {
+      console.warn('[desktop] Server did not signal ready in 15s, continuing...');
+      resolve();
+    }, 15000);
 
     serverProcess!.on('error', (err) => {
       console.error('[desktop] Server process error:', err);
@@ -77,6 +100,8 @@ async function startServer(): Promise<void> {
     serverProcess!.on('exit', (code) => {
       console.log(`[desktop] Server process exited with code ${code}`);
       serverProcess = null;
+      clearTimeout(timeout);
+      resolve();
     });
   });
 }
@@ -117,7 +142,9 @@ function createWindow(): void {
 }
 
 function createTray(): void {
-  const iconPath = path.join(__dirname, 'assets', 'tray-icon.png');
+  // In dev: __dirname = desktop/dist/, assets at desktop/assets/
+  // In prod: __dirname = app.asar/desktop/dist/, assets at app.asar/desktop/assets/
+  const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
   const icon = nativeImage.createFromPath(iconPath);
 
   if (icon.isEmpty()) {
