@@ -40,7 +40,8 @@ const agentPages = new Map<string, any>();
 async function ensurePlaywright(): Promise<any> {
   if (pw) return pw;
   try {
-    pw = await import('playwright');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    pw = require('playwright');
     return pw;
   } catch (err) {
     throw new Error(

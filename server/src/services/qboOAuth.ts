@@ -18,7 +18,7 @@ export interface QBOAuthConfig {
 
 export class QBOAuthService {
   private config: QBOAuthConfig;
-  private oauthClient: OAuthClient;
+  private oauthClient: any;
 
   constructor(config: QBOAuthConfig) {
     this.config = config;

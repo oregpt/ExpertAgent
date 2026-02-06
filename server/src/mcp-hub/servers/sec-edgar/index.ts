@@ -174,7 +174,7 @@ export class SECEdgarMCPServer implements MCPServerInstance {
               cik: data.cik,
               taxonomies,
               conceptCounts,
-              sampleConcepts: taxonomies.length > 0 ? Object.keys(data.facts[taxonomies[0]] || {}).slice(0, 20) : [],
+              sampleConcepts: taxonomies.length > 0 ? Object.keys(data.facts[taxonomies[0] as string] || {}).slice(0, 20) : [],
             },
           };
         }
@@ -231,8 +231,8 @@ export class SECEdgarMCPServer implements MCPServerInstance {
           }));
           
           if (formType) results = results.filter((r: any) => r.form === formType);
-          if (args.startDate) results = results.filter((r: any) => r.filingDate >= args.startDate);
-          if (args.endDate) results = results.filter((r: any) => r.filingDate <= args.endDate);
+          if (args.startDate) results = results.filter((r: any) => r.filingDate >= (args.startDate as string));
+          if (args.endDate) results = results.filter((r: any) => r.filingDate <= (args.endDate as string));
           
           return {
             success: true,
