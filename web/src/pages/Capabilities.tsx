@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAdminTheme } from '../AdminThemeContext';
 import { GoogleOAuthConnect } from '../components/GoogleOAuthConnect';
 import { QBOAuthConnect } from '../components/QBOAuthConnect';
+import { PlaidLinkConnect } from '../components/PlaidLinkConnect';
 
 interface Capability {
   id: string;
@@ -34,6 +35,10 @@ const isGoogleCapability = (capabilityId: string): boolean => {
 const isQBOCapability = (capabilityId: string): boolean => {
   const qboCapabilities = ['quickbooks'];
   return qboCapabilities.includes(capabilityId);
+};
+
+const isPlaidCapability = (capabilityId: string): boolean => {
+  return capabilityId === 'plaid';
 };
 
 export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
@@ -368,8 +373,31 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
                   </div>
                 )}
 
+                {isPlaidCapability(cap.id) && (
+                  <div style={{ marginTop: 8 }}>
+                    <PlaidLinkConnect
+                      apiBaseUrl={apiBaseUrl}
+                      agentId={selectedAgentId}
+                      onConnectionChange={(connected) => {
+                        if (connected !== cap.hasTokens) {
+                          loadCapabilities();
+                        }
+                      }}
+                      colors={{
+                        text: colors.text,
+                        textSecondary: colors.textSecondary,
+                        primary: colors.primary,
+                        success: colors.success,
+                        error: colors.error,
+                        border: colors.border,
+                        bgSecondary: colors.bgSecondary,
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* Credential Status (for non-OAuth capabilities) */}
-                {cap.config?.requiresAuth && !isGoogleCapability(cap.id) && !isQBOCapability(cap.id) && (
+                {cap.config?.requiresAuth && !isGoogleCapability(cap.id) && !isQBOCapability(cap.id) && !isPlaidCapability(cap.id) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {cap.hasTokens ? (
                       <>
