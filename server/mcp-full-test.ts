@@ -41,7 +41,7 @@ const TESTS: TestConfig[] = [
   { server: 'bitwave-price', tool: 'list_supported_assets', args: {}, description: 'Bitwave Price - List supported assets' },
   { server: 'binanceus', tool: 'get_ticker_price', args: { symbol: 'BTCUSDT' }, description: 'BinanceUS - Get BTC price' },
   { server: 'kraken', tool: 'get_ticker', args: { pair: 'XBTUSD' }, description: 'Kraken - Get BTC ticker' },
-  { server: 'kaiko', tool: 'get_direct_price', args: { baseAsset: 'btc', quoteAsset: 'usd' }, description: 'Kaiko - Get BTC price' },
+  { server: 'kaiko', tool: 'get_direct_price', args: { baseAsset: 'cc', quoteAsset: 'usdt' }, description: 'Kaiko - Get CC price' },
   { server: 'coinbase', tool: 'get_spot_price', args: { currencyPair: 'BTC-USD' }, description: 'Coinbase - Get BTC spot' },
   
   // Canton/Blockchain
@@ -58,8 +58,9 @@ const TESTS: TestConfig[] = [
   // Google Services
   { server: 'google-calendar', tool: 'list_calendars', args: {}, description: 'Google Calendar - List calendars' },
   { server: 'gmail', tool: 'list_labels', args: {}, description: 'Gmail - List labels' },
-  { server: 'google-sheets', tool: 'list_sheets', args: { spreadsheetId: 'test' }, description: 'Google Sheets - List sheets' },
-  { server: 'google-docs', tool: 'get_document', args: { documentId: 'test' }, description: 'Google Docs - Get doc' },
+  // Note: Sheets/Docs tests use dummy IDs - 404 means auth worked but resource doesn't exist
+  { server: 'google-sheets', tool: 'list_sheets', args: { spreadsheetId: 'test' }, description: 'Google Sheets - Auth test (404=OK)' },
+  { server: 'google-docs', tool: 'get_document', args: { documentId: 'test' }, description: 'Google Docs - Auth test (404=OK)' },
   
   // Business/Finance
   { server: 'quickbooks', tool: 'get_company_info', args: {}, description: 'QuickBooks - Company info' },

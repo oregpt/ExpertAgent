@@ -403,31 +403,65 @@ export class MCPServerManager {
 
   /**
    * Load existing tokens from database for bundled MCP servers
+   * Tries default-agent first, then checks all other agents
    */
   private async loadBundledServerTokens(): Promise<void> {
     try {
       const { capabilityService } = await import('../capabilities');
-      const defaultAgentId = 'default-agent';
+      const { db } = await import('../db/client');
+      const { agents } = await import('../db/schema');
+      
+      // Get all agent IDs, with default-agent first
+      const allAgents = await db.select({ id: agents.id }).from(agents);
+      const agentIds = ['default-agent', ...allAgents.map(a => a.id).filter(id => id !== 'default-agent')];
+
+      // Helper to find first agent with valid tokens
+      const findTokens = async (capId: string, requireAll4 = false) => {
+        for (const agentId of agentIds) {
+          const tokens = await capabilityService.getCapabilityTokens(agentId, capId);
+          if (tokens?.token1) {
+            if (requireAll4) {
+              if (tokens.token1 && tokens.token2 && tokens.token3 && tokens.token4) {
+                return tokens;
+              }
+            } else {
+              return tokens;
+            }
+          }
+        }
+        return null;
+      };
 
       // Single-token servers (API key only)
       const singleTokenCaps = ['mcp-ccview', 'mcp-ccexplorer-pro', 'slack', 'notion', 'bitwave-price', 'kaiko', 'thetie-canton', 'gamma', 'faam-tracker', 'trader'];
       for (const capId of singleTokenCaps) {
-        const tokens = await capabilityService.getCapabilityTokens(defaultAgentId, capId);
+        const tokens = await findTokens(capId);
         if (tokens?.token1) {
           this.configureBundledServer(capId, tokens.token1);
         }
       }
 
       // Multi-token servers (OAuth2, dual-key auth, or multiple API keys)
-      const multiTokenCaps = ['quickbooks', 'calendar', 'sheets', 'email', 'binanceus', 'kraken', 'coinbase', 'google-docs', 'plaid', 'chatscraper', 'wallet-balance'];
+      // OAuth servers (calendar, email, sheets, google-docs, quickbooks) need all 4 tokens
+      const oauth4TokenCaps = ['calendar', 'sheets', 'email', 'google-docs', 'quickbooks'];
+      for (const capId of oauth4TokenCaps) {
+        const tokens = await findTokens(capId, true); // require all 4 tokens
+        if (tokens) {
+          this.configureBundledServerTokens(capId, tokens);
+          console.log(`[mcp-manager] Loaded OAuth tokens for ${capId}`);
+        }
+      }
+
+      // Other multi-token servers (may only need 1-2 tokens)
+      const multiTokenCaps = ['binanceus', 'kraken', 'coinbase', 'plaid', 'chatscraper', 'wallet-balance'];
       for (const capId of multiTokenCaps) {
-        const tokens = await capabilityService.getCapabilityTokens(defaultAgentId, capId);
+        const tokens = await findTokens(capId);
         if (tokens?.token1) {
           this.configureBundledServerTokens(capId, tokens);
         }
       }
     } catch (error) {
-      // Silently ignore - tokens may not exist yet (first run)
+      console.error('[mcp-manager] Error loading bundled server tokens:', error);
     }
   }
 

@@ -113,9 +113,10 @@ export class KaikoMCPServer implements MCPServerInstance {
         case 'get_direct_price': {
           const baseAsset = (args.baseAsset as string).toLowerCase();
           const quoteAsset = (args.quoteAsset as string).toLowerCase();
-          const exchange = args.exchange ? (args.exchange as string).toLowerCase() : 'cbse';
-          const data = await this.request(`/data/trades.v1/spot_direct_exchange_rate/${exchange}/${baseAsset}-${quoteAsset}`);
-          return { success: true, data: { baseAsset, quoteAsset, exchange, price: data.data?.[0]?.price, timestamp: data.data?.[0]?.timestamp } };
+          const interval = (args.interval as string) || '1d';
+          // Use robust_pair_price endpoint (works with Canton CC data)
+          const data = await this.request(`/data/trades.v1/robust_pair_price/${baseAsset}/${quoteAsset}?interval=${interval}`);
+          return { success: true, data: { baseAsset, quoteAsset, interval, price: data.data?.[0]?.price, volume: data.data?.[0]?.volume, timestamp: data.data?.[0]?.timestamp } };
         }
         case 'get_vwap': {
           const baseAsset = (args.baseAsset as string).toLowerCase();

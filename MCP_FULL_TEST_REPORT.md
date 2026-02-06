@@ -1,7 +1,7 @@
 # MCP Full Test Report
 
-**Generated:** 2026-02-05T19:31:09.820Z  
-**Duration:** 2.9s  
+**Generated:** 2026-02-05T23:55:49.853Z  
+**Duration:** 7.5s  
 **API Endpoint:** `http://localhost:4501/api/admin/mcp/execute`
 
 ---
@@ -10,8 +10,8 @@
 
 | Result | Count |
 |--------|-------|
-| ✅ PASS | 13 |
-| ❌ FAIL | 7 |
+| ✅ PASS | 16 |
+| ❌ FAIL | 4 |
 | **Total** | 20 |
 
 ---
@@ -23,7 +23,7 @@
 **Server:** `sec-edgar`  
 **Tool:** `search_filings`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T19:31:09.821Z
+**Timestamp:** 2026-02-05T23:55:49.854Z
 
 #### Request Sent
 ```json
@@ -133,7 +133,7 @@ HTTP 200 OK
 **Server:** `bitwave-price`  
 **Tool:** `list_supported_assets`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T19:31:10.059Z
+**Timestamp:** 2026-02-05T23:55:50.251Z
 
 #### Request Sent
 ```json
@@ -189,7 +189,7 @@ HTTP 200 OK
   "metadata": {
     "server": "bitwave-price",
     "tool": "list_supported_assets",
-    "executionTime": 0
+    "executionTime": 1
   }
 }
 ```
@@ -202,7 +202,7 @@ HTTP 200 OK
 **Server:** `binanceus`  
 **Tool:** `get_ticker_price`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T19:31:10.066Z
+**Timestamp:** 2026-02-05T23:55:50.262Z
 
 #### Request Sent
 ```json
@@ -223,13 +223,13 @@ HTTP 200 OK
   "success": true,
   "data": {
     "symbol": "BTCUSDT",
-    "price": 65811.08,
-    "timestamp": "2026-02-05T19:31:10.135Z"
+    "price": 63115.29,
+    "timestamp": "2026-02-05T23:55:50.436Z"
   },
   "metadata": {
     "server": "binanceus",
     "tool": "get_ticker_price",
-    "executionTime": 66
+    "executionTime": 164
   }
 }
 ```
@@ -242,7 +242,7 @@ HTTP 200 OK
 **Server:** `kraken`  
 **Tool:** `get_ticker`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T19:31:10.136Z
+**Timestamp:** 2026-02-05T23:55:50.434Z
 
 #### Request Sent
 ```json
@@ -263,17 +263,17 @@ HTTP 200 OK
   "success": true,
   "data": {
     "pair": "XBTUSD",
-    "ask": 65618,
-    "bid": 65617.9,
-    "last": 65652.8,
-    "volume24h": 8932.04998559,
-    "low24h": 65250.6,
-    "high24h": 73975.3
+    "ask": 63021.6,
+    "bid": 63021.5,
+    "last": 63021.6,
+    "volume24h": 12097.11434397,
+    "low24h": 62308.2,
+    "high24h": 73156.8
   },
   "metadata": {
     "server": "kraken",
     "tool": "get_ticker",
-    "executionTime": 214
+    "executionTime": 178
   }
 }
 ```
@@ -281,12 +281,12 @@ HTTP 200 OK
 
 ---
 
-### ❌ Kaiko - Get BTC price
+### ✅ Kaiko - Get CC price
 
 **Server:** `kaiko`  
 **Tool:** `get_direct_price`  
-**Result:** FAIL  
-**Timestamp:** 2026-02-05T19:31:10.354Z
+**Result:** PASS  
+**Timestamp:** 2026-02-05T23:55:50.619Z
 
 #### Request Sent
 ```json
@@ -295,8 +295,8 @@ POST http://localhost:4501/api/admin/mcp/execute
   "server": "kaiko",
   "tool": "get_direct_price",
   "arguments": {
-    "baseAsset": "btc",
-    "quoteAsset": "usd"
+    "baseAsset": "cc",
+    "quoteAsset": "usdt"
   }
 }
 ```
@@ -305,17 +305,23 @@ POST http://localhost:4501/api/admin/mcp/execute
 ```json
 HTTP 200 OK
 {
-  "success": false,
-  "error": "Kaiko API error 400",
+  "success": true,
+  "data": {
+    "baseAsset": "cc",
+    "quoteAsset": "usdt",
+    "interval": "1d",
+    "price": "0.16529836596727104",
+    "volume": "1.9039586173589352e+08",
+    "timestamp": 1770249600000
+  },
   "metadata": {
     "server": "kaiko",
     "tool": "get_direct_price",
-    "executionTime": 172
+    "executionTime": 292
   }
 }
 ```
 
-**Error:** Kaiko API error 400
 
 ---
 
@@ -324,7 +330,7 @@ HTTP 200 OK
 **Server:** `coinbase`  
 **Tool:** `get_spot_price`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T19:31:10.532Z
+**Timestamp:** 2026-02-05T23:55:50.916Z
 
 #### Request Sent
 ```json
@@ -345,13 +351,13 @@ HTTP 200 OK
   "success": true,
   "data": {
     "currencyPair": "BTC-USD",
-    "price": 65676.54,
+    "price": 63014.61,
     "currency": "USD"
   },
   "metadata": {
     "server": "coinbase",
     "tool": "get_spot_price",
-    "executionTime": 96
+    "executionTime": 192
   }
 }
 ```
@@ -364,7 +370,7 @@ HTTP 200 OK
 **Server:** `thetie-canton`  
 **Tool:** `get_cumulative_metrics`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T19:31:10.633Z
+**Timestamp:** 2026-02-05T23:55:51.112Z
 
 #### Request Sent
 ```json
@@ -385,7 +391,7 @@ HTTP 200 OK
     "status": "success",
     "code": 200,
     "metadata": {
-      "timestamp": "2026-02-05T19:31:11.025Z",
+      "timestamp": "2026-02-05T23:55:52.606Z",
       "version": "3.0",
       "pagination": {
         "limit": 100,
@@ -475,7 +481,7 @@ HTTP 200 OK
 **Server:** `lighthouse`  
 **Tool:** `price_get`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T19:31:11.009Z
+**Timestamp:** 2026-02-05T23:55:52.565Z
 
 #### Request Sent
 ```json
@@ -493,12 +499,12 @@ HTTP 200 OK
 {
   "success": true,
   "data": {
-    "price": 0.16468805608502052
+    "price": 0.16174715636989415
   },
   "metadata": {
     "server": "lighthouse",
     "tool": "price_get",
-    "executionTime": 408
+    "executionTime": 932
   }
 }
 ```
@@ -511,7 +517,7 @@ HTTP 200 OK
 **Server:** `ccview`  
 **Tool:** `explore_stats`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T19:31:11.422Z
+**Timestamp:** 2026-02-05T23:55:53.503Z
 
 #### Request Sent
 ```json
@@ -529,29 +535,29 @@ HTTP 200 OK
 {
   "success": true,
   "data": {
-    "cc_price": "0.16468805608502052",
-    "total_supply": "37677364986.1074195515",
-    "market_cap": "6205011997.9678470964615724701",
+    "cc_price": "0.16173125783278805",
+    "total_supply": "37678699141.4680006373",
+    "market_cap": "6093823405.6528109529071404742",
     "volume": "130674282.6160484201",
     "volume_gain_percentage": 0.20378975149553036,
-    "latest_round": 82227,
-    "updates_count": 133738959,
+    "latest_round": 82253,
+    "updates_count": 133883147,
     "migration": 4,
     "version": "0.5.9",
-    "total_parties": 278849,
+    "total_parties": 278955,
     "sv_count": 13,
-    "validator_count": 812,
-    "featured_apps_count": 112,
+    "validator_count": 815,
+    "featured_apps_count": 113,
     "fee_accumulated": "76417276.9508431753",
-    "total_transfer_count": 96603808,
+    "total_transfer_count": 96679902,
     "total_governance_vote_count": 288,
-    "total_rewards": "37833370895.7253344644",
-    "total_rewards_missed": "1211657517.1037507292"
+    "total_rewards": "37837862690.2262748539",
+    "total_rewards_missed": "1212042053.3094585960"
   },
   "metadata": {
     "server": "ccview",
     "tool": "explore_stats",
-    "executionTime": 411
+    "executionTime": 735
   }
 }
 ```
@@ -564,7 +570,7 @@ HTTP 200 OK
 **Server:** `ccexplorer`  
 **Tool:** `overview_get`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T19:31:11.838Z
+**Timestamp:** 2026-02-05T23:55:54.249Z
 
 #### Request Sent
 ```json
@@ -582,17 +588,17 @@ HTTP 200 OK
 {
   "success": true,
   "data": {
-    "activeValidators": 733,
+    "activeValidators": 737,
     "superValidators": 13,
-    "supply": "37677421734.2318606773",
-    "consensusHeight": "13573025",
+    "supply": "37678131258.7132847917",
+    "consensusHeight": "13616569",
     "version": "0.5.6",
-    "featuredApps": 112,
+    "featuredApps": 113,
     "openVotes": [
       {
         "status": "in_progress",
         "template_id": "996a3b619d6b65ca7812881978c44c650cac119de78f5317d1f317658943001c:Splice.DsoRules:VoteRequest",
-        "contract_id": "005a66bceeffcbe07890f39b05b4449ef794840b7b19a2f7905227f09e7031babbca121220b77d124527c1da0ccd17e26d1585c8dc7d27dcab0ff0b4ed51ea246118a0540d",
+        "contract_id": "003c732ea3b7351211870783119d90e39d1cba2ccda3f5b5ae916f40290832ffb6ca1212201c1a0ad4c33f48813b2b0cdcf8d803d0296343ea02c2b5d4939378b914352b07",
         "payload": {
           "dso": "DSO::1220b1431ef217342db44d516bb9befde802be7d8899637d290895fa58880f19accc",
           "votes": [
@@ -606,15 +612,25 @@ HTTP 200 OK
             [
               "Cumberland-1",
               {
-                "sv": "Cumberland-1",
-                "accept": null
+                "sv": "Cumberland-1::12201aa8a23046d5740c9edd58f7e820c83e7f5c58f25551f955f3252d3a04240860",
+                "accept": true,
+                "reason": {
+                  "url": "",
+                  "body": ""
+                },
+                "optCastAt": "2026-02-05T20:14:02.636327Z"
               }
             ],
             [
               "Cumberland-2",
               {
-                "sv": "Cumberland-2",
-                "accept": null
+                "sv": "Cumberland-2::1220120801da0994334c869a6db19d9321f3d5baf9e40377830a90c2af78658aede6",
+                "accept": true,
+                "reason": {
+                  "url": "",
+                  "body": ""
+                },
+                "optCastAt": "2026-02-05T20:14:16.235913Z"
               }
             ],
             [
@@ -630,22 +646,7 @@ HTTP 200 OK
                 "sv": "Digital-Asset-2",
                 "accept": null
               }
-            ],
-            [
-              "Five-North-1",
-              {
-                "sv": "Five-North-1::1220520b6d396b91c4b13a1786bd5f317e4240001632d4a628c1c4f53a0b5165ba98",
-                "accept": true,
-                "reason": {
-                  "url": "",
-                  "body": ""
-                },
-                "optCastAt": "2026-02-04T03:13:36.553248Z"
-              }
-            ],
-            [
-              "Global-Synchronizer-Foundation",
-  
+    
 ... (truncated)
 ```
 
@@ -657,7 +658,7 @@ HTTP 200 OK
 **Server:** `wallet-balance`  
 **Tool:** `list_supported_chains`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T19:31:12.174Z
+**Timestamp:** 2026-02-05T23:55:54.571Z
 
 #### Request Sent
 ```json
@@ -727,7 +728,7 @@ HTTP 200 OK
   "metadata": {
     "server": "wallet-balance",
     "tool": "list_supported_chains",
-    "executionTime": 0
+    "executionTime": 1
   }
 }
 ```
@@ -740,7 +741,7 @@ HTTP 200 OK
 **Server:** `slack`  
 **Tool:** `list_channels`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T19:31:12.177Z
+**Timestamp:** 2026-02-05T23:55:54.575Z
 
 #### Request Sent
 ```json
@@ -837,7 +838,7 @@ HTTP 200 OK
 **Server:** `notion`  
 **Tool:** `search`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T19:31:12.308Z
+**Timestamp:** 2026-02-05T23:55:54.743Z
 
 #### Request Sent
 ```json
@@ -863,12 +864,12 @@ HTTP 200 OK
     "has_more": false,
     "type": "page_or_database",
     "page_or_database": {},
-    "request_id": "55f211f5-9608-4ebe-bc18-b2baf966938f"
+    "request_id": "64fe3804-0cda-44d2-81aa-373c61391a33"
   },
   "metadata": {
     "server": "notion",
     "tool": "search",
-    "executionTime": 310
+    "executionTime": 728
   }
 }
 ```
@@ -876,12 +877,12 @@ HTTP 200 OK
 
 ---
 
-### ❌ Google Calendar - List calendars
+### ✅ Google Calendar - List calendars
 
 **Server:** `google-calendar`  
 **Tool:** `list_calendars`  
-**Result:** FAIL  
-**Timestamp:** 2026-02-05T19:31:12.622Z
+**Result:** PASS  
+**Timestamp:** 2026-02-05T23:55:55.477Z
 
 #### Request Sent
 ```json
@@ -897,26 +898,80 @@ POST http://localhost:4501/api/admin/mcp/execute
 ```json
 HTTP 200 OK
 {
-  "success": false,
-  "error": "Google Calendar not configured. Please add your OAuth tokens (access_token, refresh_token, client_id, client_secret) in Capabilities settings.",
-  "metadata": {
-    "server": "google-calendar",
-    "tool": "list_calendars",
-    "executionTime": 0
-  }
-}
+  "success": true,
+  "data": {
+    "kind": "calendar#calendarList",
+    "etag": "\"p32fuh94fj71p40o\"",
+    "nextSyncToken": "CJ_opI-Zw5IDEhRvcmVAYWdlbnRpY2xlZGdlci5haQ==",
+    "items": [
+      {
+        "kind": "calendar#calendarListEntry",
+        "etag": "\"1762443739595551\"",
+        "id": "en.mexican#holiday@group.v.calendar.google.com",
+        "summary": "Holidays in Mexico",
+        "description": "Holidays and Observances in Mexico",
+        "timeZone": "America/Cancun",
+        "colorId": "8",
+        "backgroundColor": "#16a765",
+        "foregroundColor": "#000000",
+        "selected": true,
+        "accessRole": "reader",
+        "defaultReminders": [],
+        "conferenceProperties": {
+          "allowedConferenceSolutionTypes": [
+            "hangoutsMeet"
+          ]
+        }
+      },
+      {
+        "kind": "calendar#calendarListEntry",
+        "etag": "\"1769531560971039\"",
+        "id": "olubusayo.phillips@bastion.com",
+        "summary": "OPBastion",
+        "timeZone": "America/New_York",
+        "colorId": "11",
+        "backgroundColor": "#fbe983",
+        "foregroundColor": "#000000",
+        "selected": true,
+        "accessRole": "freeBusyReader",
+        "defaultReminders": [],
+        "conferenceProperties": {
+          "allowedConferenceSolutionTypes": [
+            "hangoutsMeet"
+          ]
+        }
+      },
+      {
+        "kind": "calendar#calendarListEntry",
+        "etag": "\"1769613999223503\"",
+        "id": "ore.phillips@p2p.org",
+        "summary": "OpP2P",
+        "timeZone": "America/Panama",
+        "colorId": "9",
+        "backgroundColor": "#7bd148",
+        "foregroundColor": "#000000",
+        "selected": true,
+        "accessRole": "freeBusyReader",
+        "defaultReminders": []
+      },
+      {
+        "kind": "calendar#calendarListEntry",
+        "etag": "\"1769758123045935\"",
+        "id": "ore@agenticledger.ai",
+        "summary": "OPAgenticledger",
+        "timeZone": "America/Cancun",
+        "colorId": "1
 ```
 
-**Error:** Google Calendar not configured. Please add your OAuth tokens (access_token, refresh_token, client_id, client_secret) in Capabilities settings.
 
 ---
 
-### ❌ Gmail - List labels
+### ✅ Gmail - List labels
 
 **Server:** `gmail`  
 **Tool:** `list_labels`  
-**Result:** FAIL  
-**Timestamp:** 2026-02-05T19:31:12.625Z
+**Result:** PASS  
+**Timestamp:** 2026-02-05T23:55:56.103Z
 
 #### Request Sent
 ```json
@@ -932,17 +987,16 @@ POST http://localhost:4501/api/admin/mcp/execute
 ```json
 HTTP 200 OK
 {
-  "success": false,
-  "error": "Gmail not configured. Add OAuth tokens in Capabilities settings.",
+  "success": true,
+  "data": "[\n  {\n    \"id\": \"CHAT\",\n    \"name\": \"CHAT\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"SENT\",\n    \"name\": \"SENT\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"INBOX\",\n    \"name\": \"INBOX\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"IMPORTANT\",\n    \"name\": \"IMPORTANT\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"TRASH\",\n    \"name\": \"TRASH\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"DRAFT\",\n    \"name\": \"DRAFT\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"SPAM\",\n    \"name\": \"SPAM\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"CATEGORY_FORUMS\",\n    \"name\": \"CATEGORY_FORUMS\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"CATEGORY_UPDATES\",\n    \"name\": \"CATEGORY_UPDATES\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"CATEGORY_PERSONAL\",\n    \"name\": \"CATEGORY_PERSONAL\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"CATEGORY_PROMOTIONS\",\n    \"name\": \"CATEGORY_PROMOTIONS\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"CATEGORY_SOCIAL\",\n    \"name\": \"CATEGORY_SOCIAL\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"YELLOW_STAR\",\n    \"name\": \"YELLOW_STAR\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"STARRED\",\n    \"name\": \"STARRED\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"UNREAD\",\n    \"name\": \"UNREAD\",\n    \"type\": \"system\"\n  },\n  {\n    \"id\": \"Label_1\",\n    \"name\": \"[Imap]/Drafts\",\n    \"type\": \"user\"\n  },\n  {\n    \"id\": \"Label_127258673531462368\",\n    \"name\": \"IEU\",\n    \"type\": \"user\"\n  },\n  {\n    \"id\": \"Label_204639504172009009\",\n    \"name\": \"ON BEHALF OF OTHERS\",\n    \"type\": \"user\"\n  }\n]",
   "metadata": {
     "server": "gmail",
     "tool": "list_labels",
-    "executionTime": 0
+    "executionTime": 407
   }
 }
 ```
 
-**Error:** Gmail not configured. Add OAuth tokens in Capabilities settings.
 
 ---
 
@@ -951,7 +1005,7 @@ HTTP 200 OK
 **Server:** `google-sheets`  
 **Tool:** `list_sheets`  
 **Result:** FAIL  
-**Timestamp:** 2026-02-05T19:31:12.629Z
+**Timestamp:** 2026-02-05T23:55:56.515Z
 
 #### Request Sent
 ```json
@@ -970,16 +1024,23 @@ POST http://localhost:4501/api/admin/mcp/execute
 HTTP 200 OK
 {
   "success": false,
-  "error": "Google Sheets not configured. Add OAuth tokens in Capabilities settings.",
+  "error": "Google Sheets API error 404: {\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"Requested entity was not found.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
   "metadata": {
     "server": "google-sheets",
     "tool": "list_sheets",
-    "executionTime": 0
+    "executionTime": 424
   }
 }
 ```
 
-**Error:** Google Sheets not configured. Add OAuth tokens in Capabilities settings.
+**Error:** Google Sheets API error 404: {
+  "error": {
+    "code": 404,
+    "message": "Requested entity was not found.",
+    "status": "NOT_FOUND"
+  }
+}
+
 
 ---
 
@@ -988,7 +1049,7 @@ HTTP 200 OK
 **Server:** `google-docs`  
 **Tool:** `get_document`  
 **Result:** FAIL  
-**Timestamp:** 2026-02-05T19:31:12.633Z
+**Timestamp:** 2026-02-05T23:55:56.944Z
 
 #### Request Sent
 ```json
@@ -1007,16 +1068,16 @@ POST http://localhost:4501/api/admin/mcp/execute
 HTTP 200 OK
 {
   "success": false,
-  "error": "Google API error 401",
+  "error": "Google API error 404",
   "metadata": {
     "server": "google-docs",
     "tool": "get_document",
-    "executionTime": 97
+    "executionTime": 376
   }
 }
 ```
 
-**Error:** Google API error 401
+**Error:** Google API error 404
 
 ---
 
@@ -1025,7 +1086,7 @@ HTTP 200 OK
 **Server:** `quickbooks`  
 **Tool:** `get_company_info`  
 **Result:** FAIL  
-**Timestamp:** 2026-02-05T19:31:12.733Z
+**Timestamp:** 2026-02-05T23:55:57.324Z
 
 #### Request Sent
 ```json
@@ -1060,7 +1121,7 @@ HTTP 200 OK
 **Server:** `plaid`  
 **Tool:** `get_accounts`  
 **Result:** FAIL  
-**Timestamp:** 2026-02-05T19:31:12.737Z
+**Timestamp:** 2026-02-05T23:55:57.328Z
 
 #### Request Sent
 ```json
@@ -1095,7 +1156,7 @@ HTTP 200 OK
 **Server:** `anyapi`  
 **Tool:** `list_available_apis`  
 **Result:** PASS  
-**Timestamp:** 2026-02-05T19:31:12.740Z
+**Timestamp:** 2026-02-05T23:55:57.331Z
 
 #### Request Sent
 ```json
