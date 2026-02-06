@@ -13,7 +13,9 @@ type FileUploadRequest = Request & {
 
 export const kbRouter = Router();
 
-const uploadDir = path.join(process.cwd(), 'uploads', 'kb');
+const IS_DESKTOP = process.env.IS_DESKTOP === 'true';
+const dataDir = process.env.EXPERT_AGENT_DATA_DIR || process.cwd();
+const uploadDir = IS_DESKTOP ? path.join(dataDir, 'uploads', 'kb') : path.join(process.cwd(), 'uploads', 'kb');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }

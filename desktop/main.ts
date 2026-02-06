@@ -21,8 +21,8 @@ function getServerEntryPath(): string {
     // In dev, run the TypeScript source directly via ts-node
     return path.join(__dirname, '..', 'server', 'src', 'index.ts');
   }
-  // In production (packaged), run the compiled JS
-  return path.join(__dirname, '..', 'server', 'dist', 'index.js');
+  // In production (packaged), __dirname is desktop/dist/, so go up two levels to reach root
+  return path.join(__dirname, '..', '..', 'server', 'dist', 'index.js');
 }
 
 async function startServer(): Promise<void> {

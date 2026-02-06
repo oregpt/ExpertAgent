@@ -28,7 +28,9 @@ import {
 export const adminRouter = Router();
 
 // Configure multer for avatar uploads
-const uploadsPath = path.join(__dirname, '../../../uploads');
+const IS_DESKTOP = process.env.IS_DESKTOP === 'true';
+const dataDir = process.env.EXPERT_AGENT_DATA_DIR || process.cwd();
+const uploadsPath = IS_DESKTOP ? path.join(dataDir, 'uploads') : path.join(__dirname, '../../../uploads');
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     // Ensure uploads directory exists

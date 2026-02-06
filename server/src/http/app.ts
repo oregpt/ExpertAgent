@@ -23,7 +23,9 @@ import { ensureDefaultAgent } from '../chat/chatService';
 import { capabilityService } from '../capabilities';
 
 // Ensure uploads directory exists
-const uploadsPath = path.join(__dirname, '../../uploads');
+const IS_DESKTOP = process.env.IS_DESKTOP === 'true';
+const dataDir = process.env.EXPERT_AGENT_DATA_DIR || process.cwd();
+const uploadsPath = IS_DESKTOP ? path.join(dataDir, 'uploads') : path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadsPath)) {
   fs.mkdirSync(uploadsPath, { recursive: true });
   logger.info('Created uploads directory', { path: uploadsPath });

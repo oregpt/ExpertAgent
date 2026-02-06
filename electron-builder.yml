@@ -35,5 +35,8 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
 asar: true
+asarUnpack:
+  - "**/better-sqlite3/**/*.node"
+  - "**/better_sqlite3.node"
 extraMetadata:
   main: desktop/dist/main.js
