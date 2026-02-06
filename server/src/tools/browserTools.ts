@@ -26,18 +26,18 @@
 import { Tool, ToolCall } from '../llm/types';
 
 // Lazy-loaded Playwright types — only imported when first used
-let pw: typeof import('playwright') | null = null;
-let browserInstance: import('playwright').Browser | null = null;
+let pw: any = null;
+let browserInstance: any = null;
 
 // Per-agent browser contexts (persistent cookies/sessions)
-const agentContexts = new Map<string, import('playwright').BrowserContext>();
-const agentPages = new Map<string, import('playwright').Page>();
+const agentContexts = new Map<string, any>();
+const agentPages = new Map<string, any>();
 
 // ============================================================================
 // Playwright Initialization (Lazy)
 // ============================================================================
 
-async function ensurePlaywright(): Promise<typeof import('playwright')> {
+async function ensurePlaywright(): Promise<any> {
   if (pw) return pw;
   try {
     pw = await import('playwright');
@@ -49,7 +49,7 @@ async function ensurePlaywright(): Promise<typeof import('playwright')> {
   }
 }
 
-async function ensureBrowser(): Promise<import('playwright').Browser> {
+async function ensureBrowser(): Promise<any> {
   if (browserInstance && browserInstance.isConnected()) return browserInstance;
 
   const playwright = await ensurePlaywright();
@@ -71,7 +71,7 @@ async function ensureBrowser(): Promise<import('playwright').Browser> {
  * Get or create a persistent browser context + page for an agent.
  * Cookies and session state persist across calls.
  */
-async function getAgentPage(agentId: string): Promise<import('playwright').Page> {
+async function getAgentPage(agentId: string): Promise<any> {
   // Return existing page if still open
   const existingPage = agentPages.get(agentId);
   if (existingPage && !existingPage.isClosed()) {
@@ -469,8 +469,8 @@ export async function executeBrowserTool(
         const selector = input.selector as string;
         if (!selector) return { success: false, output: 'Missing selector parameter' };
 
-        const texts = await page.$$eval(selector, (elements) =>
-          elements.map((el) => (el as HTMLElement).innerText?.trim()).filter(Boolean)
+        const texts = await page.$$eval(selector, (elements: any[]) =>
+          elements.map((el: any) => (el as HTMLElement).innerText?.trim()).filter(Boolean)
         );
 
         if (texts.length === 0) {

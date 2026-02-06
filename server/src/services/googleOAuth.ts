@@ -142,13 +142,14 @@ export class GoogleOAuthService {
       )
       .limit(1);
 
-    if (existing.length > 0) {
+    const existingRow = existing[0];
+    if (existingRow) {
       // Update existing tokens
       await db
         .update(capabilityTokens)
         .set({
           token1: accessToken,
-          token2: refreshToken || existing[0].token2, // Keep old refresh if no new one
+          token2: refreshToken || existingRow.token2, // Keep old refresh if no new one
           token3: email,
           expiresAt,
           updatedAt: new Date(),
@@ -189,11 +190,11 @@ export class GoogleOAuthService {
       )
       .limit(1);
 
-    if (tokens.length === 0 || !tokens[0].token1) {
+    const tokenData = tokens[0];
+    if (!tokenData || !tokenData.token1) {
       return null;
     }
 
-    const tokenData = tokens[0];
     const now = new Date();
 
     // Check if token is still valid (with 5 minute buffer)
@@ -260,14 +261,15 @@ export class GoogleOAuthService {
       )
       .limit(1);
 
-    if (tokens.length === 0 || !tokens[0].token1) {
+    const tokenData = tokens[0];
+    if (!tokenData || !tokenData.token1) {
       return { connected: false };
     }
 
     return {
       connected: true,
-      email: tokens[0].token3 || undefined,
-      expiresAt: tokens[0].expiresAt || undefined,
+      email: tokenData.token3 || undefined,
+      expiresAt: tokenData.expiresAt || undefined,
     };
   }
 
@@ -286,10 +288,11 @@ export class GoogleOAuthService {
       )
       .limit(1);
 
-    if (tokens.length > 0 && tokens[0].token1) {
+    const tokenData2 = tokens[0];
+    if (tokenData2 && tokenData2.token1) {
       // Try to revoke with Google
       try {
-        this.oauth2Client.setCredentials({ access_token: tokens[0].token1 });
+        this.oauth2Client.setCredentials({ access_token: tokenData2.token1 });
         await this.oauth2Client.revokeCredentials();
         logger.info('Google OAuth: Revoked credentials with Google', { agentId, capabilityId });
       } catch (error: any) {

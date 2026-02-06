@@ -168,11 +168,11 @@ export class QBOAuthService {
       )
       .limit(1);
 
-    if (tokens.length === 0 || !tokens[0].token1 || !tokens[0].token3) {
+    const tokenData = tokens[0];
+    if (!tokenData || !tokenData.token1 || !tokenData.token3) {
       return null;
     }
 
-    const tokenData = tokens[0];
     const now = new Date();
 
     // Check if token is still valid (with 5 minute buffer)
@@ -252,14 +252,15 @@ export class QBOAuthService {
       )
       .limit(1);
 
-    if (tokens.length === 0 || !tokens[0].token1) {
+    const tokenData = tokens[0];
+    if (!tokenData || !tokenData.token1) {
       return { connected: false };
     }
 
     return {
       connected: true,
-      realmId: tokens[0].token3 || undefined,
-      expiresAt: tokens[0].expiresAt || undefined,
+      realmId: tokenData.token3 || undefined,
+      expiresAt: tokenData.expiresAt || undefined,
     };
   }
 
@@ -278,10 +279,11 @@ export class QBOAuthService {
       )
       .limit(1);
 
-    if (tokens.length > 0 && tokens[0].token1) {
+    const tokenData2 = tokens[0];
+    if (tokenData2 && tokenData2.token1) {
       // Try to revoke with QuickBooks
       try {
-        this.oauthClient.token.setToken({ access_token: tokens[0].token1 });
+        this.oauthClient.token.setToken({ access_token: tokenData2.token1 });
         await this.oauthClient.revoke();
         logger.info('QBO OAuth: Revoked credentials with QuickBooks', { agentId, capabilityId });
       } catch (error: any) {
