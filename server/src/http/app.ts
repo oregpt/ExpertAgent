@@ -85,7 +85,7 @@ export function createHttpApp() {
   app.get('/health', async (_req: Request, res: Response) => {
     const healthData: Record<string, unknown> = {
       status: 'ok',
-      version: '2.0.0-alpha.1',
+      version: '2.0.0-alpha.8',
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
     };
