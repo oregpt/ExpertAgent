@@ -11,6 +11,7 @@ import { memoryRouter } from './memoryRoutes';
 import { proactiveRouter } from './proactiveRoutes';
 import { channelRoutes } from './channelRoutes';
 import { oauthRouter } from './oauthRoutes';
+import plaidRoutes from './plaidRoutes';
 import { getFeatures } from '../licensing';
 import { requireAuth } from '../middleware/auth';
 import { chatLimiter, apiLimiter } from '../middleware/rateLimit';
@@ -129,6 +130,9 @@ export function createHttpApp() {
   // OAuth routes: mounted at /api/auth. Auth applied INSIDE router per-route.
   // Callback routes are unauthenticated (user returns from OAuth provider).
   app.use('/api/auth', apiLimiter, oauthRouter);
+
+  // Plaid Link flow routes
+  app.use('/api/plaid', apiLimiter, plaidRoutes);
 
   // v2 routes: mounted at /api. Auth is applied INSIDE each router.
   // This is because channelRoutes has both auth'd CRUD routes and
