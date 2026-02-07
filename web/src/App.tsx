@@ -231,11 +231,8 @@ const ChatPage: React.FC<{ apiBaseUrl: string; theme: AgentTheme }> = ({ apiBase
       : [];
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, color: colors.text }}>Chat Preview</h1>
-      <p style={{ color: colors.textSecondary, marginBottom: 24, fontSize: 14 }}>
-        Test your agent's responses. Select an agent and start chatting.
-      </p>
+    <div style={{ maxWidth: 1600, margin: '0 auto' }}>
+      <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 24, color: colors.text }}>Chat with Agent...</h1>
 
       {/* Agent Selector */}
       <div
@@ -309,15 +306,21 @@ const ChatPage: React.FC<{ apiBaseUrl: string; theme: AgentTheme }> = ({ apiBase
           padding: 16,
           boxShadow: colors.shadowLg,
           border: `1px solid ${colors.border}`,
+          height: 'calc(100vh - 140px)',
+          minHeight: 700,
+          display: 'flex',
+          flexDirection: 'column' as const,
         }}
       >
         {selectedAgentId && (
-          <AgentChatWidget
-            key={conversationKey}
-            apiBaseUrl={apiBaseUrl}
-            agentId={selectedAgentId}
-            theme={theme}
-          />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, overflow: 'hidden' }}>
+            <AgentChatWidget
+              key={conversationKey}
+              apiBaseUrl={apiBaseUrl}
+              agentId={selectedAgentId}
+              theme={theme}
+            />
+          </div>
         )}
       </div>
     </div>

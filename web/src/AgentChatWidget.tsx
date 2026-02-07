@@ -750,8 +750,7 @@ export const AgentChatWidget: React.FC<AgentChatWidgetProps> = ({
         borderRadius: 16,
         border: '1px solid var(--agent-secondary)',
         width: '100%',
-        maxWidth: 400,
-        maxHeight: 'min(600px, 85vh)',
+        ...(mode === 'inline' ? { maxWidth: '100%', height: '100%' } : { maxWidth: 400, maxHeight: 'min(600px, 85vh)' }),
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
@@ -1614,7 +1613,7 @@ export const AgentChatWidget: React.FC<AgentChatWidgetProps> = ({
 
   // Inline mode
   return (
-    <div ref={containerRef} style={{ fontFamily: 'var(--agent-font)' }} className="agentinabox-root">
+    <div ref={containerRef} style={{ fontFamily: 'var(--agent-font)', height: '100%', display: 'flex', flexDirection: 'column' }} className="agentinabox-root">
       {chatPanel}
     </div>
   );
