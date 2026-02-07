@@ -14,6 +14,8 @@ import { oauthRouter } from './oauthRoutes';
 import plaidRoutes from './plaidRoutes';
 import { getFeatures, initializeLicensing } from '../licensing';
 import { validateLicenseKey, TIER_PRESETS, LicenseTier } from '../licensing/license';
+import { getMCPServerManager } from '../mcp-hub';
+import { capabilityService } from '../capabilities';
 import { requireAuth } from '../middleware/auth';
 import { chatLimiter, apiLimiter } from '../middleware/rateLimit';
 import { logger } from '../utils/logger';
@@ -197,6 +199,19 @@ export function createHttpApp() {
       // Re-initialize licensing with the new key
       process.env.AGENTICLEDGER_LICENSE_KEY = licenseKey.trim();
       initializeLicensing();
+
+      // Initialize MCP Hub and capabilities now that license is active
+      const updatedFeatures = getFeatures();
+      if (updatedFeatures.mcpHub) {
+        try {
+          const manager = getMCPServerManager();
+          await manager.initialize();
+          await capabilityService.seedDefaultCapabilities();
+          logger.info('MCP Hub and capabilities initialized after license activation');
+        } catch (mcpErr) {
+          logger.warn('Failed to initialize MCP Hub after license activation', { error: (mcpErr as Error).message });
+        }
+      }
 
       res.json({
         valid: true,

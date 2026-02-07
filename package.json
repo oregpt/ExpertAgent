@@ -23,6 +23,7 @@
   "license": "PROPRIETARY",
   "description": "Agent-in-a-Box v2 — Enterprise AI agent platform with soul, memory, proactive behavior, and multi-channel delivery. Every capability independently toggleable via license flags.",
   "devDependencies": {
-    "electron": "^40.2.1"
+    "electron": "^40.2.1",
+    "typescript": "^5.9.3"
   }
 }
