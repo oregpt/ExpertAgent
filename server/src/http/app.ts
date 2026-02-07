@@ -259,6 +259,20 @@ export function createHttpApp() {
       fs.writeFileSync(configFilePath, JSON.stringify(platformConfig, null, 2), 'utf-8');
       logger.info('Platform API keys saved', { path: configFilePath, keys: Object.keys(platformConfig) });
 
+      // Also set env vars in the running process so they're available immediately
+      const envMap: Record<string, string> = {
+        anthropic_api_key: 'ANTHROPIC_API_KEY',
+        openai_api_key: 'OPENAI_API_KEY',
+        grok_api_key: 'GROK_API_KEY',
+        gemini_api_key: 'GEMINI_API_KEY',
+      };
+      for (const [configKey, envKey] of Object.entries(envMap)) {
+        if (platformConfig[configKey]) {
+          process.env[envKey] = platformConfig[configKey];
+          logger.info(`Set env var: ${envKey}`);
+        }
+      }
+
       // Mark setup as complete by writing a flag file
       const setupFlagPath = path.join(dataDir, 'setup-complete.flag');
       fs.writeFileSync(setupFlagPath, new Date().toISOString(), 'utf-8');
