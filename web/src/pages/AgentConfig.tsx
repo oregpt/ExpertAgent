@@ -107,6 +107,7 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
   const [savingAgent, setSavingAgent] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
+  const [ollamaAvailable, setOllamaAvailable] = useState(false);
 
   // New agent modal
   const [showNewAgentModal, setShowNewAgentModal] = useState(false);
@@ -163,7 +164,10 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
 
         if (modelsRes.ok) {
           const data = await modelsRes.json();
-          setAvailableModels(data.models || []);
+          const models: ModelOption[] = data.models || [];
+          setAvailableModels(models);
+          // Check if any Ollama models were returned
+          setOllamaAvailable(models.some((m: ModelOption) => m.provider === 'ollama'));
         }
       } catch (e) {
         console.error(e);
@@ -800,7 +804,7 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
               {availableModels.length > 0 ? (
                 availableModels.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.name} ({m.provider})
+                    {m.provider === 'ollama' ? `🖥️ ${m.name} — Local` : `☁️ ${m.name} — Cloud`}
                   </option>
                 ))
               ) : (
@@ -852,7 +856,18 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
                       style={{ accentColor: colors.primary }}
                     />
                     <span style={{ fontSize: 14, color: colors.text }}>
-                      {m.name} ({m.provider})
+                      {m.provider === 'ollama' ? `🖥️ ${m.name}` : `☁️ ${m.name}`}
+                    </span>
+                    <span style={{
+                      fontSize: 10,
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      fontWeight: 600,
+                      backgroundColor: m.provider === 'ollama' ? '#10b981' : '#6366f1',
+                      color: '#fff',
+                      marginLeft: 'auto',
+                    }}>
+                      {m.provider === 'ollama' ? 'LOCAL' : 'CLOUD'}
                     </span>
                   </label>
                 ))}
@@ -860,6 +875,26 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
               <p style={{ fontSize: 12, color: colors.textMuted, marginTop: 8 }}>
                 {allowedModels.length} model(s) selected. Users will see a dropdown in chat.
               </p>
+            </div>
+          )}
+
+          {/* Ollama Info */}
+          {!ollamaAvailable && (
+            <div style={{
+              padding: '10px 14px',
+              borderRadius: 8,
+              backgroundColor: colors.primaryLight || '#f0f4ff',
+              border: `1px solid ${colors.border}`,
+              fontSize: 13,
+              color: colors.textMuted,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}>
+              <span>💡</span>
+              <span>
+                Install <a href="https://ollama.com" target="_blank" rel="noopener noreferrer" style={{ color: colors.primary, textDecoration: 'underline' }}>Ollama</a> to use local AI models — no API keys needed, data stays on your machine.
+              </span>
             </div>
           )}
 
