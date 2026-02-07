@@ -5,7 +5,7 @@ import fs from 'fs';
 import { db } from '../db/client';
 import { agents, folders, tags, documentTags, documents } from '../db/schema';
 import { ensureDefaultAgent } from '../chat/chatService';
-import { AVAILABLE_MODELS } from '../llm';
+import { AVAILABLE_MODELS, getAvailableModels, OllamaProvider } from '../llm';
 import { capabilityService } from '../capabilities';
 import { getOrchestrator, getMCPServerManager } from '../mcp-hub';
 import { eq, and, isNull, sql, inArray } from 'drizzle-orm';
@@ -61,9 +61,35 @@ const avatarUpload = multer({
   },
 });
 
-// Get available LLM models
+// Get available LLM models (cloud + local Ollama if running)
 adminRouter.get('/models', async (_req, res) => {
-  res.json({ models: AVAILABLE_MODELS });
+  try {
+    const models = await getAvailableModels();
+    res.json({ models });
+  } catch {
+    // Fallback to static cloud models if anything goes wrong
+    res.json({ models: AVAILABLE_MODELS });
+  }
+});
+
+// ============================================================================
+// Ollama (Local LLM) Endpoints
+// ============================================================================
+
+// Check if Ollama is running
+adminRouter.get('/ollama/status', async (_req, res) => {
+  const available = await OllamaProvider.isAvailable();
+  res.json({ available });
+});
+
+// List Ollama models
+adminRouter.get('/ollama/models', async (_req, res) => {
+  try {
+    const models = await OllamaProvider.listModels();
+    res.json({ models });
+  } catch {
+    res.json({ models: [] });
+  }
 });
 
 // ============================================================================
