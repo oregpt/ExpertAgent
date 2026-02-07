@@ -20,6 +20,7 @@ import { requireAuth } from '../middleware/auth';
 import { chatLimiter, apiLimiter } from '../middleware/rateLimit';
 import { logger } from '../utils/logger';
 import { db } from '../db/client';
+import { agents } from '../db/schema';
 import { sql } from 'drizzle-orm';
 
 // Ensure uploads directory exists
@@ -271,6 +272,27 @@ export function createHttpApp() {
           process.env[envKey] = platformConfig[configKey];
           logger.info(`Set env var: ${envKey}`);
         }
+      }
+
+      // Save API keys to all existing agents so they show as "Configured"
+      try {
+        const allAgents = await db.select({ id: agents.id }).from(agents);
+        const keyPairs: [string, string | undefined][] = [
+          ['anthropic_api_key', anthropicApiKey],
+          ['openai_api_key', openaiApiKey],
+          ['grok_api_key', grokApiKey],
+          ['gemini_api_key', geminiApiKey],
+        ];
+        for (const agent of allAgents) {
+          for (const [key, value] of keyPairs) {
+            if (value && value.trim()) {
+              await capabilityService.setAgentApiKey(agent.id, key, value.trim());
+            }
+          }
+        }
+        logger.info('API keys saved to agents', { agentCount: allAgents.length });
+      } catch (agentKeyErr) {
+        logger.warn('Failed to save API keys to agents', { error: (agentKeyErr as Error).message });
       }
 
       // Mark setup as complete by writing a flag file
