@@ -22,6 +22,7 @@ import { agents } from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { ensureDefaultAgent } from '../chat/chatService';
 import { capabilityService } from '../capabilities';
+import { createDefaultDocuments, upsertDocument } from '../memory/documentService';
 
 // Ensure uploads directory exists
 const IS_DESKTOP = process.env.IS_DESKTOP === 'true';
@@ -220,38 +221,97 @@ export function createHttpApp() {
   // Complete initial setup: create default agent + save API keys
   app.post('/api/setup/complete', async (req: Request, res: Response) => {
     try {
-      const { agentName, agentDescription, anthropicApiKey, openaiApiKey } = req.body as {
+      const {
+        agentName,
+        anthropicApiKey,
+        openaiApiKey,
+        grokApiKey,
+        geminiApiKey,
+        // Soul & Context fields
+        agentRole,
+        agentPersonality,
+        agentVoice,
+        orgName,
+        orgIndustry,
+        useCase,
+        targetUsers,
+      } = req.body as {
         agentName: string;
-        agentDescription?: string;
         anthropicApiKey?: string;
         openaiApiKey?: string;
+        grokApiKey?: string;
+        geminiApiKey?: string;
+        agentRole?: string;
+        agentPersonality?: string;
+        agentVoice?: string;
+        orgName?: string;
+        orgIndustry?: string;
+        useCase?: string;
+        targetUsers?: string;
       };
 
       if (!agentName || typeof agentName !== 'string') {
         return res.status(400).json({ error: 'agentName is required' });
       }
 
-      if (!anthropicApiKey && !openaiApiKey) {
-        return res.status(400).json({ error: 'At least one API key (anthropicApiKey or openaiApiKey) is required' });
+      if (!anthropicApiKey && !openaiApiKey && !grokApiKey && !geminiApiKey) {
+        return res.status(400).json({ error: 'At least one AI provider API key is required' });
       }
 
       // Create or get the default agent
       const agentId = await ensureDefaultAgent();
 
-      // Update agent name/description if provided
-      const patch: Record<string, string> = { name: agentName };
-      if (agentDescription) {
-        patch.description = agentDescription;
-      }
-      await db.update(agents).set(patch).where(eq(agents.id, agentId));
+      // Update agent with name, description, and v2 features all ON
+      const features = {
+        soulMemory: true,
+        deepTools: true,
+        proactive: true,
+        backgroundAgents: true,
+        multiChannel: true,
+      };
+      const description = agentRole || `${agentName} AI assistant`;
+      await db.update(agents).set({
+        name: agentName,
+        description,
+        features,
+      } as any).where(eq(agents.id, agentId));
 
-      // Save API keys using the same pattern as adminRoutes
+      // Save API keys for all providers
       if (anthropicApiKey) {
         await capabilityService.setAgentApiKey(agentId, 'anthropic_api_key', anthropicApiKey);
       }
       if (openaiApiKey) {
         await capabilityService.setAgentApiKey(agentId, 'openai_api_key', openaiApiKey);
       }
+      if (grokApiKey) {
+        await capabilityService.setAgentApiKey(agentId, 'grok_api_key', grokApiKey);
+      }
+      if (geminiApiKey) {
+        await capabilityService.setAgentApiKey(agentId, 'gemini_api_key', geminiApiKey);
+      }
+
+      // Generate and save soul.md from wizard inputs
+      const soulContent = buildSoulFromWizard(agentName, agentRole, agentPersonality, agentVoice);
+      await upsertDocument(agentId, 'soul', 'soul.md', soulContent);
+
+      // Generate and save context.md from wizard inputs
+      const contextContent = buildContextFromWizard(agentName, orgName, orgIndustry, useCase, targetUsers);
+      await upsertDocument(agentId, 'context', 'context.md', contextContent);
+
+      // Create empty memory.md (agent will populate over time)
+      await upsertDocument(agentId, 'memory', 'memory.md', `# Memory — ${agentName}
+
+*This document is automatically maintained by the agent. It captures long-term learnings, important facts, and curated knowledge from conversations.*
+
+## Key Facts
+- (No entries yet — the agent will add learnings here over time)
+
+## Lessons Learned
+- (No entries yet)
+
+## Important Context
+- (No entries yet)
+`);
 
       res.json({ success: true, agentId });
     } catch (err) {
@@ -259,6 +319,84 @@ export function createHttpApp() {
       res.status(500).json({ error: 'Failed to complete setup' });
     }
   });
+
+  // Helper: Build soul.md content from wizard inputs
+  function buildSoulFromWizard(
+    name: string,
+    role?: string,
+    personality?: string,
+    voice?: string,
+  ): string {
+    let soul = `# Soul — ${name}\n\n`;
+
+    soul += `## Identity\n`;
+    soul += `You are **${name}**`;
+    if (role) {
+      soul += `, ${role}`;
+    } else {
+      soul += `, an AI assistant powered by Expert Agent`;
+    }
+    soul += `.\n\n`;
+
+    soul += `## Personality\n`;
+    if (personality) {
+      // Split user input by commas/newlines into bullet points
+      const traits = personality.split(/[,\n]+/).map(t => t.trim()).filter(Boolean);
+      for (const trait of traits) {
+        soul += `- ${trait}\n`;
+      }
+    } else {
+      soul += `- Helpful, professional, and knowledgeable\n`;
+      soul += `- Clear and concise in communication\n`;
+      soul += `- Honest about what you know and don't know\n`;
+    }
+    soul += `\n`;
+
+    soul += `## Behavior Rules\n`;
+    soul += `- Always be truthful — never fabricate information\n`;
+    soul += `- Cite your sources when drawing from the knowledge base\n`;
+    soul += `- If you're unsure, say so and offer to help find the answer\n`;
+    soul += `- Use the tools available to you when they can help answer a question\n\n`;
+
+    soul += `## Voice\n`;
+    if (voice) {
+      const voiceTraits = voice.split(/[,\n]+/).map(t => t.trim()).filter(Boolean);
+      for (const trait of voiceTraits) {
+        soul += `- ${trait}\n`;
+      }
+    } else {
+      soul += `- Professional but approachable\n`;
+      soul += `- Use simple language when possible\n`;
+      soul += `- Match the user's level of formality\n`;
+    }
+
+    return soul;
+  }
+
+  // Helper: Build context.md from wizard inputs
+  function buildContextFromWizard(
+    name: string,
+    orgName?: string,
+    orgIndustry?: string,
+    useCase?: string,
+    targetUsers?: string,
+  ): string {
+    let ctx = `# Context — ${name}\n\n`;
+    ctx += `*This document provides context about the customer, organization, and use case.*\n\n`;
+
+    ctx += `## Organization\n`;
+    ctx += `- Name: ${orgName || '(Not set)'}\n`;
+    ctx += `- Industry: ${orgIndustry || '(Not set)'}\n\n`;
+
+    ctx += `## Use Case\n`;
+    ctx += `- Primary purpose: ${useCase || '(Not set)'}\n`;
+    ctx += `- Target users: ${targetUsers || '(Not set)'}\n\n`;
+
+    ctx += `## Important Notes\n`;
+    ctx += `- (Add any context the agent should always know about)\n`;
+
+    return ctx;
+  }
 
   // ==========================================================================
   // Routes with Auth & Rate Limiting

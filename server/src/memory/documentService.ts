@@ -16,6 +16,14 @@ import { dbNow } from '../db/date-utils';
 
 const IS_DESKTOP = process.env.IS_DESKTOP === 'true';
 
+// For SQLite raw queries (better-sqlite3 handle)
+let rawSqlite: any = null;
+if (IS_DESKTOP) {
+  try {
+    rawSqlite = require('../db/client-sqlite').rawSqlite;
+  } catch {}
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -166,8 +174,13 @@ export async function searchMemory(
   const queryEmbedding = await generateEmbedding(query, agentId);
 
   if (IS_DESKTOP) {
-    // SQLite: fetch all embeddings, compute similarity in JS
-    const rows = await db.execute(sql`
+    // SQLite: use raw better-sqlite3 handle (drizzle SQLite doesn't support db.execute)
+    if (!rawSqlite) {
+      console.warn('[document-service] rawSqlite not available, returning empty results');
+      return [];
+    }
+
+    const rows = rawSqlite.prepare(`
       SELECT
         e.chunk_text,
         e.line_start,
@@ -177,12 +190,12 @@ export async function searchMemory(
         d.doc_type
       FROM ai_agent_memory_embeddings e
       JOIN ai_agent_documents d ON e.doc_id = d.id
-      WHERE e.agent_id = ${agentId}
+      WHERE e.agent_id = ?
         AND e.embedding IS NOT NULL
-    `);
+    `).all(agentId);
 
-    return (rows.rows as any[])
-      .map((r) => ({
+    return (rows as any[])
+      .map((r: any) => ({
         chunkText: r.chunk_text,
         docKey: r.doc_key,
         docType: r.doc_type,

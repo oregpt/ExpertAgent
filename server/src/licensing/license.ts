@@ -16,7 +16,7 @@ import { FeatureFlags, BASE_FEATURES } from './features';
  * For GENERATING keys: Set LICENSE_SECRET env var (only on your machine)
  * For VERIFYING keys: The same secret must be compiled in or available
  */
-const LICENSE_SECRET = process.env.LICENSE_SECRET || 'agenticledger-default-secret-change-in-production';
+const LICENSE_SECRET = process.env.LICENSE_SECRET || 'a187523b66ff76479c6c451b6e3104970bccfa66a38a03ac8107a5b1be003d26';
 
 // ============================================================================
 // Tier Presets

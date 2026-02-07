@@ -7,6 +7,14 @@ import { cosineSimilarity } from '../db/vector-utils';
 
 const IS_DESKTOP = process.env.IS_DESKTOP === 'true';
 
+// For SQLite raw queries (better-sqlite3 handle)
+let rawSqlite: any = null;
+if (IS_DESKTOP) {
+  try {
+    rawSqlite = require('../db/client-sqlite').rawSqlite;
+  } catch {}
+}
+
 // Fallback API key from environment
 const envApiKey = process.env.OPENAI_API_KEY;
 
@@ -148,8 +156,13 @@ async function searchSQLite(
   limit: number,
   maxTokens: number
 ): Promise<SimilarChunk[]> {
-  // Fetch all chunks for this agent that have embeddings
-  const rows = await db.execute(sql`
+  // Use raw better-sqlite3 handle for raw SQL (drizzle SQLite doesn't support db.execute)
+  if (!rawSqlite) {
+    console.warn('[rag] rawSqlite not available, returning empty results');
+    return [];
+  }
+
+  const rows = rawSqlite.prepare(`
     SELECT
       c.id,
       c.document_id,
@@ -159,12 +172,12 @@ async function searchSQLite(
       d.title as source_title
     FROM ai_document_chunks c
     LEFT JOIN ai_documents d ON c.document_id = d.id
-    WHERE c.agent_id = ${agentId}
+    WHERE c.agent_id = ?
       AND c.embedding IS NOT NULL
-  `);
+  `).all(agentId);
 
   // Compute cosine similarity in JS
-  const scored = (rows.rows as any[])
+  const scored = (rows as any[])
     .map((row) => {
       const docEmbedding: number[] = JSON.parse(row.embedding);
       return {

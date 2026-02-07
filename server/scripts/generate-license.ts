@@ -106,7 +106,7 @@ function main(): void {
   }
 
   // Check LICENSE_SECRET
-  if (!process.env.LICENSE_SECRET || process.env.LICENSE_SECRET === 'agenticledger-default-secret-change-in-production') {
+  if (!process.env.LICENSE_SECRET) {
     console.error('❌ LICENSE_SECRET environment variable must be set.');
     console.error('   Example: LICENSE_SECRET=my-super-secret npx ts-node scripts/generate-license.ts ...');
     process.exit(1);
