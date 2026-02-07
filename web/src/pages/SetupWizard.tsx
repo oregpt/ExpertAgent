@@ -283,6 +283,7 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
           openaiApiKey: openaiKey.trim() || undefined,
           grokApiKey: grokKey.trim() || undefined,
           geminiApiKey: geminiKey.trim() || undefined,
+          ollamaAvailable: ollamaAvailable || undefined,
         }),
       });
       if (!res.ok) {

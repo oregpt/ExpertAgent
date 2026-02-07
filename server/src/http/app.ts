@@ -235,15 +235,17 @@ export function createHttpApp() {
         openaiApiKey,
         grokApiKey,
         geminiApiKey,
+        ollamaAvailable,
       } = req.body as {
         anthropicApiKey?: string;
         openaiApiKey?: string;
         grokApiKey?: string;
         geminiApiKey?: string;
+        ollamaAvailable?: boolean;
       };
 
-      if (!anthropicApiKey && !openaiApiKey && !grokApiKey && !geminiApiKey) {
-        return res.status(400).json({ error: 'At least one AI provider API key is required' });
+      if (!anthropicApiKey && !openaiApiKey && !grokApiKey && !geminiApiKey && !ollamaAvailable) {
+        return res.status(400).json({ error: 'At least one AI provider API key is required, or Ollama must be available locally' });
       }
 
       // Save API keys to a platform-level config file (not per-agent)
