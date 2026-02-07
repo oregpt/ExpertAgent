@@ -28,24 +28,24 @@ export interface FeatureFlags {
   // GitLab KB Sync (pull docs from GitLab to Knowledge Base)
   gitlabKbSync: boolean;
 
-  // Soul & Memory System (v2) — self-evolving agent personality and memory
-  // If OFF → agent uses static system prompt from instructions field (v1 behavior)
+  // Soul & Memory System (v2) â€” self-evolving agent personality and memory
+  // If OFF â†’ agent uses static system prompt from instructions field (v1 behavior)
   soulMemory: boolean;
 
-  // Deep Tools (v2) — web search, web fetch, and other real-world tools
-  // If OFF → only v1 capabilities (MCP Hub / anyapi tools)
+  // Deep Tools (v2) â€” web search, web fetch, and other real-world tools
+  // If OFF â†’ only v1 capabilities (MCP Hub / anyapi tools)
   deepTools: boolean;
 
-  // Proactive Engine (v2) — heartbeats, cron jobs, proactive behavior
-  // If OFF → no heartbeats, no cron. Purely reactive.
+  // Proactive Engine (v2) â€” heartbeats, cron jobs, proactive behavior
+  // If OFF â†’ no heartbeats, no cron. Purely reactive.
   proactive: boolean;
 
-  // Background Agents (v2) — sub-agent spawning for fire-and-forget tasks
-  // If OFF → no spawnTask available
+  // Background Agents (v2) â€” sub-agent spawning for fire-and-forget tasks
+  // If OFF â†’ no spawnTask available
   backgroundAgents: boolean;
 
-  // Multi-Channel Delivery (v2) — Slack, Teams, webhooks
-  // If OFF → widget only (v1 behavior). No channel router starts, CRUD returns 403.
+  // Multi-Channel Delivery (v2) â€” Slack, Teams, webhooks
+  // If OFF â†’ widget only (v1 behavior). No channel router starts, CRUD returns 403.
   multiChannel: boolean;
 }
 
@@ -54,18 +54,18 @@ export interface FeatureFlags {
  * This is what you get with no license key and no env vars
  */
 export const BASE_FEATURES: FeatureFlags = {
-  multiAgent: false,
-  maxAgents: 1,
-  multimodal: false,
-  mcpHub: false,
-  allowedCapabilities: [],
-  customBranding: false,
-  gitlabKbSync: false,
-  soulMemory: false,
-  deepTools: false,
-  proactive: false,
-  backgroundAgents: false,
-  multiChannel: false,
+  multiAgent: true,
+  maxAgents: 10,
+  multimodal: true,
+  mcpHub: true,
+  allowedCapabilities: ['*'],
+  customBranding: true,
+  gitlabKbSync: true,
+  soulMemory: true,
+  deepTools: true,
+  proactive: true,
+  backgroundAgents: true,
+  multiChannel: false,  // Keep off - not needed for Frexplorer demo
 };
 
 /**
