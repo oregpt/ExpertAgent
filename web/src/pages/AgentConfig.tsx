@@ -1162,7 +1162,7 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
                       {setting.configured ? (
                         <span style={{ color: colors.success }}>✓ Configured (encrypted)</span>
                       ) : setting.fromEnv ? (
-                        <span style={{ color: colors.primary }}>↳ Using environment variable (fallback)</span>
+                        <span style={{ color: colors.success }}>✓ Configured (platform key)</span>
                       ) : (
                         <span style={{ color: colors.warning }}>Not configured</span>
                       )}
