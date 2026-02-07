@@ -36,6 +36,9 @@ nsis:
   createStartMenuShortcut: true
 asar: true
 asarUnpack:
+  - "server/dist/**"
+  - "server/node_modules/**"
+  - "server/public/**"
   - "**/better-sqlite3/**/*.node"
   - "**/better_sqlite3.node"
 extraMetadata:

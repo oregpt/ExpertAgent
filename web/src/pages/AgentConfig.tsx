@@ -502,6 +502,100 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
     );
   }
 
+  // Empty state: no agents exist yet — show prominent "Create Agent" CTA
+  if (agents.length === 0 && !showNewAgentModal) {
+    return (
+      <div style={{ maxWidth: 800, margin: '0 auto' }}>
+        <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, color: colors.text }}>Agent Configuration</h1>
+        <p style={{ color: colors.textSecondary, marginBottom: 24, fontSize: 14 }}>
+          Create your first AI agent to get started.
+        </p>
+        <div
+          style={{
+            background: colors.bgCard,
+            borderRadius: 16,
+            padding: 48,
+            textAlign: 'center',
+            border: `1px solid ${colors.border}`,
+            boxShadow: colors.shadowLg,
+          }}
+        >
+          <div
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryHover || colors.primary})`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 24px',
+            }}
+          >
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="8" r="5" />
+              <path d="M20 21a8 8 0 0 0-16 0" />
+              <line x1="12" y1="11" x2="12" y2="17" />
+              <line x1="9" y1="14" x2="15" y2="14" />
+            </svg>
+          </div>
+          <h2 style={{ fontSize: 22, fontWeight: 600, color: colors.text, marginBottom: 8 }}>No Agents Yet</h2>
+          <p style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 8, lineHeight: 1.6, maxWidth: 400, margin: '0 auto 8px' }}>
+            Agents are AI assistants with their own personality, knowledge, and capabilities.
+          </p>
+          <p style={{ fontSize: 13, color: colors.textMuted, marginBottom: 32, lineHeight: 1.5, maxWidth: 400, margin: '0 auto 32px' }}>
+            Create your first agent to start building. You can configure its name, model, tools, memory, and more.
+          </p>
+          <div style={{ marginBottom: 24 }}>
+            <input
+              type="text"
+              value={newAgentName}
+              onChange={(e) => setNewAgentName(e.target.value)}
+              placeholder="Enter agent name (e.g., Finance Assistant)"
+              style={{
+                width: '100%',
+                maxWidth: 360,
+                padding: '14px 16px',
+                borderRadius: 8,
+                border: `1px solid ${colors.border}`,
+                backgroundColor: colors.bgInput,
+                color: colors.text,
+                fontSize: 15,
+                boxSizing: 'border-box',
+                outline: 'none',
+                marginBottom: 16,
+                textAlign: 'center',
+              }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = colors.primary)}
+              onBlur={(e) => (e.currentTarget.style.borderColor = colors.border)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && newAgentName.trim()) handleCreateAgent(); }}
+            />
+          </div>
+          <button
+            onClick={handleCreateAgent}
+            disabled={!newAgentName.trim() || creatingAgent}
+            style={{
+              padding: '16px 40px',
+              borderRadius: 10,
+              border: 'none',
+              backgroundColor: !newAgentName.trim() || creatingAgent ? colors.bgSecondary : colors.primary,
+              color: !newAgentName.trim() || creatingAgent ? colors.textMuted : colors.primaryText,
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: !newAgentName.trim() || creatingAgent ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              minWidth: 200,
+            }}
+            onMouseEnter={(e) => { if (newAgentName.trim() && !creatingAgent) e.currentTarget.style.backgroundColor = colors.primaryHover; }}
+            onMouseLeave={(e) => { if (newAgentName.trim() && !creatingAgent) e.currentTarget.style.backgroundColor = colors.primary; }}
+          >
+            {creatingAgent ? 'Creating...' : 'Create Agent'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, color: colors.text }}>Agent Configuration</h1>

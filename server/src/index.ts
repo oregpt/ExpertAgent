@@ -77,6 +77,30 @@ async function initializeChannels() {
 // ============================================================================
 
 async function main() {
+  // Load platform-level API keys from config file into env vars
+  // (These are saved by the setup wizard and available to all agents via fromEnv)
+  const dataDir = process.env.EXPERT_AGENT_DATA_DIR || process.cwd();
+  const platformKeysPath = require('path').join(dataDir, 'platform-api-keys.json');
+  try {
+    if (require('fs').existsSync(platformKeysPath)) {
+      const platformKeys = JSON.parse(require('fs').readFileSync(platformKeysPath, 'utf-8'));
+      const envMap: Record<string, string> = {
+        anthropic_api_key: 'ANTHROPIC_API_KEY',
+        openai_api_key: 'OPENAI_API_KEY',
+        grok_api_key: 'GROK_API_KEY',
+        gemini_api_key: 'GEMINI_API_KEY',
+      };
+      for (const [configKey, envKey] of Object.entries(envMap)) {
+        if (platformKeys[configKey] && !process.env[envKey]) {
+          process.env[envKey] = platformKeys[configKey];
+          logger.info(`Loaded platform API key: ${envKey}`);
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to load platform API keys', { error: (err as Error).message });
+  }
+
   // Initialize licensing FIRST (before anything else)
   initializeLicensing();
 

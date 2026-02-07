@@ -18,11 +18,7 @@ import { requireAuth } from '../middleware/auth';
 import { chatLimiter, apiLimiter } from '../middleware/rateLimit';
 import { logger } from '../utils/logger';
 import { db } from '../db/client';
-import { agents } from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
-import { ensureDefaultAgent } from '../chat/chatService';
-import { capabilityService } from '../capabilities';
-import { createDefaultDocuments, upsertDocument } from '../memory/documentService';
+import { sql } from 'drizzle-orm';
 
 // Ensure uploads directory exists
 const IS_DESKTOP = process.env.IS_DESKTOP === 'true';
@@ -98,7 +94,13 @@ export function createHttpApp() {
     };
 
     try {
-      await db.execute(sql`SELECT 1`);
+      if (IS_DESKTOP) {
+        // SQLite: drizzle better-sqlite3 doesn't support db.execute()
+        const rawSqlite = require('../db/client-sqlite').rawSqlite;
+        rawSqlite.prepare('SELECT 1').get();
+      } else {
+        await db.execute(sql`SELECT 1`);
+      }
       healthData.db = 'connected';
     } catch {
       healthData.status = 'degraded';
@@ -126,7 +128,7 @@ export function createHttpApp() {
   // ==========================================================================
 
   // Check whether initial setup is complete
-  app.get('/api/setup/status', async (_req: Request, res: Response) => {
+  app.get('/api/setup/status', (_req: Request, res: Response) => {
     try {
       // Check if a valid license key is present
       const licenseKey = process.env.AGENTICLEDGER_LICENSE_KEY;
@@ -136,21 +138,13 @@ export function createHttpApp() {
         hasLicense = licenseResult.valid;
       }
 
-      // Check if at least one agent exists
-      const agentRows = await db.select().from(agents).limit(1);
-      const hasAgent = agentRows.length > 0;
+      // Check if the setup-complete flag file exists (written by POST /api/setup/complete)
+      const setupFlagPath = path.join(dataDir, 'setup-complete.flag');
+      const hasCompletedSetup = fs.existsSync(setupFlagPath);
 
-      // Check if that agent has at least one LLM API key configured
-      let hasApiKey = false;
-      if (hasAgent) {
-        const agentId = agentRows[0].id as string;
-        const keyStatus = await capabilityService.getAgentApiKeysStatus(agentId);
-        hasApiKey = keyStatus.some((k) => k.configured || k.fromEnv);
-      }
+      const setupComplete = hasLicense && hasCompletedSetup;
 
-      const setupComplete = hasLicense && hasAgent && hasApiKey;
-
-      res.json({ setupComplete, hasLicense, hasAgent, hasApiKey });
+      res.json({ setupComplete, hasLicense, hasCompletedSetup });
     } catch (err) {
       logger.error('Setup status check failed', { error: (err as Error).message });
       res.status(500).json({ error: 'Failed to check setup status' });
@@ -222,181 +216,42 @@ export function createHttpApp() {
   app.post('/api/setup/complete', async (req: Request, res: Response) => {
     try {
       const {
-        agentName,
         anthropicApiKey,
         openaiApiKey,
         grokApiKey,
         geminiApiKey,
-        // Soul & Context fields
-        agentRole,
-        agentPersonality,
-        agentVoice,
-        orgName,
-        orgIndustry,
-        useCase,
-        targetUsers,
       } = req.body as {
-        agentName: string;
         anthropicApiKey?: string;
         openaiApiKey?: string;
         grokApiKey?: string;
         geminiApiKey?: string;
-        agentRole?: string;
-        agentPersonality?: string;
-        agentVoice?: string;
-        orgName?: string;
-        orgIndustry?: string;
-        useCase?: string;
-        targetUsers?: string;
       };
-
-      if (!agentName || typeof agentName !== 'string') {
-        return res.status(400).json({ error: 'agentName is required' });
-      }
 
       if (!anthropicApiKey && !openaiApiKey && !grokApiKey && !geminiApiKey) {
         return res.status(400).json({ error: 'At least one AI provider API key is required' });
       }
 
-      // Create or get the default agent
-      const agentId = await ensureDefaultAgent();
+      // Save API keys to a platform-level config file (not per-agent)
+      const platformConfig: Record<string, string> = {};
+      if (anthropicApiKey) platformConfig.anthropic_api_key = anthropicApiKey;
+      if (openaiApiKey) platformConfig.openai_api_key = openaiApiKey;
+      if (grokApiKey) platformConfig.grok_api_key = grokApiKey;
+      if (geminiApiKey) platformConfig.gemini_api_key = geminiApiKey;
 
-      // Update agent with name, description, and v2 features all ON
-      const features = {
-        soulMemory: true,
-        deepTools: true,
-        proactive: true,
-        backgroundAgents: true,
-        multiChannel: true,
-      };
-      const description = agentRole || `${agentName} AI assistant`;
-      await db.update(agents).set({
-        name: agentName,
-        description,
-        features,
-      } as any).where(eq(agents.id, agentId));
+      const configFilePath = path.join(dataDir, 'platform-api-keys.json');
+      fs.writeFileSync(configFilePath, JSON.stringify(platformConfig, null, 2), 'utf-8');
+      logger.info('Platform API keys saved', { path: configFilePath, keys: Object.keys(platformConfig) });
 
-      // Save API keys for all providers
-      if (anthropicApiKey) {
-        await capabilityService.setAgentApiKey(agentId, 'anthropic_api_key', anthropicApiKey);
-      }
-      if (openaiApiKey) {
-        await capabilityService.setAgentApiKey(agentId, 'openai_api_key', openaiApiKey);
-      }
-      if (grokApiKey) {
-        await capabilityService.setAgentApiKey(agentId, 'grok_api_key', grokApiKey);
-      }
-      if (geminiApiKey) {
-        await capabilityService.setAgentApiKey(agentId, 'gemini_api_key', geminiApiKey);
-      }
+      // Mark setup as complete by writing a flag file
+      const setupFlagPath = path.join(dataDir, 'setup-complete.flag');
+      fs.writeFileSync(setupFlagPath, new Date().toISOString(), 'utf-8');
 
-      // Generate and save soul.md from wizard inputs
-      const soulContent = buildSoulFromWizard(agentName, agentRole, agentPersonality, agentVoice);
-      await upsertDocument(agentId, 'soul', 'soul.md', soulContent);
-
-      // Generate and save context.md from wizard inputs
-      const contextContent = buildContextFromWizard(agentName, orgName, orgIndustry, useCase, targetUsers);
-      await upsertDocument(agentId, 'context', 'context.md', contextContent);
-
-      // Create empty memory.md (agent will populate over time)
-      await upsertDocument(agentId, 'memory', 'memory.md', `# Memory — ${agentName}
-
-*This document is automatically maintained by the agent. It captures long-term learnings, important facts, and curated knowledge from conversations.*
-
-## Key Facts
-- (No entries yet — the agent will add learnings here over time)
-
-## Lessons Learned
-- (No entries yet)
-
-## Important Context
-- (No entries yet)
-`);
-
-      res.json({ success: true, agentId });
+      res.json({ success: true });
     } catch (err) {
       logger.error('Setup completion failed', { error: (err as Error).message });
       res.status(500).json({ error: 'Failed to complete setup' });
     }
   });
-
-  // Helper: Build soul.md content from wizard inputs
-  function buildSoulFromWizard(
-    name: string,
-    role?: string,
-    personality?: string,
-    voice?: string,
-  ): string {
-    let soul = `# Soul — ${name}\n\n`;
-
-    soul += `## Identity\n`;
-    soul += `You are **${name}**`;
-    if (role) {
-      soul += `, ${role}`;
-    } else {
-      soul += `, an AI assistant powered by Expert Agent`;
-    }
-    soul += `.\n\n`;
-
-    soul += `## Personality\n`;
-    if (personality) {
-      // Split user input by commas/newlines into bullet points
-      const traits = personality.split(/[,\n]+/).map(t => t.trim()).filter(Boolean);
-      for (const trait of traits) {
-        soul += `- ${trait}\n`;
-      }
-    } else {
-      soul += `- Helpful, professional, and knowledgeable\n`;
-      soul += `- Clear and concise in communication\n`;
-      soul += `- Honest about what you know and don't know\n`;
-    }
-    soul += `\n`;
-
-    soul += `## Behavior Rules\n`;
-    soul += `- Always be truthful — never fabricate information\n`;
-    soul += `- Cite your sources when drawing from the knowledge base\n`;
-    soul += `- If you're unsure, say so and offer to help find the answer\n`;
-    soul += `- Use the tools available to you when they can help answer a question\n\n`;
-
-    soul += `## Voice\n`;
-    if (voice) {
-      const voiceTraits = voice.split(/[,\n]+/).map(t => t.trim()).filter(Boolean);
-      for (const trait of voiceTraits) {
-        soul += `- ${trait}\n`;
-      }
-    } else {
-      soul += `- Professional but approachable\n`;
-      soul += `- Use simple language when possible\n`;
-      soul += `- Match the user's level of formality\n`;
-    }
-
-    return soul;
-  }
-
-  // Helper: Build context.md from wizard inputs
-  function buildContextFromWizard(
-    name: string,
-    orgName?: string,
-    orgIndustry?: string,
-    useCase?: string,
-    targetUsers?: string,
-  ): string {
-    let ctx = `# Context — ${name}\n\n`;
-    ctx += `*This document provides context about the customer, organization, and use case.*\n\n`;
-
-    ctx += `## Organization\n`;
-    ctx += `- Name: ${orgName || '(Not set)'}\n`;
-    ctx += `- Industry: ${orgIndustry || '(Not set)'}\n\n`;
-
-    ctx += `## Use Case\n`;
-    ctx += `- Primary purpose: ${useCase || '(Not set)'}\n`;
-    ctx += `- Target users: ${targetUsers || '(Not set)'}\n\n`;
-
-    ctx += `## Important Notes\n`;
-    ctx += `- (Add any context the agent should always know about)\n`;
-
-    return ctx;
-  }
 
   // ==========================================================================
   // Routes with Auth & Rate Limiting

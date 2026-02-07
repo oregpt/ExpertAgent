@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+// Load .env from the server directory (not CWD, which may differ in desktop mode)
+dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
 export type LLMProviderId = 'claude' | 'openai';
 

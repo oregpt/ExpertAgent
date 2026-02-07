@@ -170,6 +170,24 @@ adminRouter.post('/agents', async (req, res) => {
       });
     }
 
+    // Auto-enable default capabilities for new agents (ones that don't require auth)
+    if (features.mcpHub) {
+      const defaultEnabledCaps = [
+        'anyapi',         // Universal API caller (has built-in free APIs)
+        'coingecko',      // Crypto data (no auth required)
+        'sec-edgar',      // SEC filings (no auth required)
+        'bitwave-price',  // Crypto prices (no auth required)
+        'thetie-canton',  // Canton analytics (no auth required)
+        'faam-tracker',   // Financial asset tracker (no auth required)
+      ];
+      for (const capId of defaultEnabledCaps) {
+        capabilityService.setAgentCapability(id, capId, true).catch((err) => {
+          console.error(`[admin] Failed to auto-enable capability ${capId} for agent ${id}:`, err);
+        });
+      }
+      console.log(`[admin] Auto-enabled ${defaultEnabledCaps.length} default capabilities for agent ${id}`);
+    }
+
     res.json({ agent: inserted[0] });
   } catch (err) {
     console.error(err);

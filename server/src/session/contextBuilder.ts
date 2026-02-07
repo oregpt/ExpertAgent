@@ -143,7 +143,16 @@ async function buildSystemPrompt(agentId: string, hasTools: boolean): Promise<st
 
   if (hasTools) {
     systemInstructions +=
-      '\n\nYou have access to tools that can help you answer questions. Use them when appropriate to fetch real-time data or perform actions.';
+      '\n\n## Tools\n' +
+      'You have tools available and MUST use them proactively. ' +
+      'For ANY question about current events, news, prices, live data, weather, or anything that requires up-to-date information, ' +
+      'you MUST call the appropriate tool — do NOT answer from your training data alone.\n\n' +
+      'Key tools:\n' +
+      '- web__search: Search the web for current information (news, prices, facts)\n' +
+      '- web__fetch: Fetch and read content from a specific URL\n' +
+      '- memory__read / memory__write: Read or update your persistent memory\n' +
+      '- mcp__*: External service integrations (check available actions)\n\n' +
+      'When in doubt, USE A TOOL rather than guessing. Always prefer tool results over your training data for anything time-sensitive.';
   }
 
   return systemInstructions;
@@ -208,14 +217,16 @@ async function loadSessionHistory(
     .orderBy(desc(messages.id))
     .limit(maxMessages) as any[];
 
-  // Reverse to chronological order
-  return msgRows.reverse().map((m: any) => {
-    const role = (m.role as 'user' | 'assistant' | 'system') || 'user';
-    const content = (m.content as string).length > 1500
-      ? (m.content as string).slice(0, 1500) + '...[truncated]'
-      : (m.content as string);
-    return { role, content } as LLMMessage;
-  });
+  // Reverse to chronological order, filter out empty messages
+  return msgRows.reverse()
+    .map((m: any) => {
+      const role = (m.role as 'user' | 'assistant' | 'system') || 'user';
+      const content = (m.content as string).length > 1500
+        ? (m.content as string).slice(0, 1500) + '...[truncated]'
+        : (m.content as string);
+      return { role, content } as LLMMessage;
+    })
+    .filter((m) => m.content.trim().length > 0);
 }
 
 // ============================================================================

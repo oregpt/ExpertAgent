@@ -13,6 +13,16 @@ let serverProcess: ChildProcess | null = null;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
+// Suppress EPIPE errors when writing to closed stdout/stderr (e.g., when child process disconnects)
+process.stdout?.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EPIPE') return;
+  throw err;
+});
+process.stderr?.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EPIPE') return;
+  throw err;
+});
+
 const SERVER_PORT = process.env.PORT || '4100';
 const IS_DEV = !app.isPackaged;
 
@@ -36,8 +46,8 @@ async function startServer(): Promise<void> {
   console.log(`[desktop] Starting server: ${serverEntry}`);
   console.log(`[desktop] Data directory: ${dataDir}`);
 
-  const env = {
-    ...process.env,
+  const env: Record<string, string> = {
+    ...process.env as Record<string, string>,
     IS_DESKTOP: 'true',
     EXPERT_AGENT_DATA_DIR: dataDir,
     PORT: SERVER_PORT,
@@ -45,6 +55,22 @@ async function startServer(): Promise<void> {
     // License key is loaded from {dataDir}/license.key by the server on startup.
     // No dev mode bypass — customers must enter a valid license key in the setup wizard.
   };
+
+  // In dev mode, enable all features via env vars so tools work without a license key
+  if (IS_DEV) {
+    env.AGENTICLEDGER_DEV_MODE = 'true';
+    env.FEATURE_MULTI_AGENT = 'true';
+    env.FEATURE_MAX_AGENTS = '10';
+    env.FEATURE_MULTIMODAL = 'true';
+    env.FEATURE_MCP_HUB = 'true';
+    env.FEATURE_CAPABILITIES = '*';
+    env.FEATURE_CUSTOM_BRANDING = 'true';
+    env.FEATURE_SOUL_MEMORY = 'true';
+    env.FEATURE_DEEP_TOOLS = 'true';
+    env.FEATURE_PROACTIVE = 'true';
+    env.FEATURE_BACKGROUND_AGENTS = 'true';
+    env.FEATURE_MULTI_CHANNEL = 'true';
+  }
 
   // Use spawn with system Node.js to avoid ABI mismatch with native modules (better-sqlite3).
   // Electron's fork() uses Electron's bundled Node, which has a different ABI than
