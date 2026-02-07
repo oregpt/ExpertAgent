@@ -56,11 +56,12 @@ export function isDeepTool(toolName: string): boolean {
  * Routes to the appropriate handler based on tool name.
  */
 export async function executeDeepTool(
-  toolCall: ToolCall
+  toolCall: ToolCall,
+  agentId?: string
 ): Promise<{ success: boolean; output: string }> {
   switch (toolCall.name) {
     case 'web__search':
-      return executeWebSearch(toolCall.input);
+      return executeWebSearch(toolCall.input, agentId);
 
     case 'web__fetch':
       return executeWebFetch(toolCall.input);

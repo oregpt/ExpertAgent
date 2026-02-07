@@ -345,7 +345,7 @@ export async function executeWithTools(
 
       // v2: Check if this is a deep tool (web__search, web__fetch)
       if (isDeepTool(toolCall.name)) {
-        const deepResult = await executeDeepTool(toolCall);
+        const deepResult = await executeDeepTool(toolCall, options.agentId);
         
         const MAX_OUTPUT = 20000;
         let output = deepResult.output;
