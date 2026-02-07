@@ -61,11 +61,11 @@ export const BASE_FEATURES: FeatureFlags = {
   allowedCapabilities: [],
   customBranding: false,
   gitlabKbSync: false,
-  soulMemory: false,
-  deepTools: false,
+  soulMemory: true,
+  deepTools: true,
   proactive: false,
-  backgroundAgents: false,
-  multiChannel: false,
+  backgroundAgents: true,
+  multiChannel: true,
 };
 
 /**

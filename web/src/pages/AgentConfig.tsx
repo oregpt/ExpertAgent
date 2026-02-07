@@ -964,8 +964,9 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
               ]).map((feature) => {
                 const globalEnabled = featuresDetailed?.global?.[feature.key] ?? false;
                 const agentOverride = agentFeatures[feature.key];
-                // Effective: globally enabled AND agent has explicitly enabled (default = off for new agents)
-                const effectiveEnabled = globalEnabled && agentOverride === true;
+                // Effective: globally enabled AND agent hasn't explicitly disabled (default = ON for new agents)
+                // Matches backend logic: agentOverrides.X !== false (undefined = ON)
+                const effectiveEnabled = globalEnabled && agentOverride !== false;
 
                 return (
                   <div
@@ -989,8 +990,8 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
                         {feature.desc}
                       </div>
                       {!globalEnabled && (
-                        <div style={{ fontSize: 11, color: colors.warning, marginTop: 4, fontStyle: 'italic' }}>
-                          ⚠ Disabled globally — enable via license or environment variable
+                        <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 4, fontStyle: 'italic' }}>
+                          Not available on current plan
                         </div>
                       )}
                     </div>
@@ -1001,7 +1002,8 @@ export const AgentConfig: React.FC<AgentConfigProps> = ({ apiBaseUrl }) => {
                           if (!globalEnabled) return; // Can't toggle if globally disabled
                           setAgentFeatures((prev) => ({
                             ...prev,
-                            [feature.key]: !effectiveEnabled,
+                            // Toggle: if currently ON (undefined or true), set to false; if OFF (false), set to undefined (default ON)
+                            [feature.key]: effectiveEnabled ? false : undefined,
                           }));
                         }}
                         disabled={!globalEnabled}
