@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAdminTheme } from '../AdminThemeContext';
 
 interface SetupWizardProps {
@@ -210,11 +210,44 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
   const [showGrokKey, setShowGrokKey] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
 
+  // Ollama local LLM detection
+  const [ollamaAvailable, setOllamaAvailable] = useState(false);
+  const [ollamaModelCount, setOllamaModelCount] = useState(0);
+  const [ollamaChecking, setOllamaChecking] = useState(false);
+
+  // Check Ollama when entering Step 3
+  useEffect(() => {
+    if (step !== 3) return;
+    const checkOllama = async () => {
+      setOllamaChecking(true);
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/admin/ollama/status`);
+        if (res.ok) {
+          const data = await res.json();
+          setOllamaAvailable(data.available);
+          if (data.available) {
+            const modelsRes = await fetch(`${apiBaseUrl}/api/admin/ollama/models`);
+            if (modelsRes.ok) {
+              const modelsData = await modelsRes.json();
+              setOllamaModelCount((modelsData.models || []).length);
+            }
+          }
+        }
+      } catch {
+        // Ollama check failed — not available
+      } finally {
+        setOllamaChecking(false);
+      }
+    };
+    checkOllama();
+  }, [step, apiBaseUrl]);
+
   const canProceedStep3 =
     anthropicKey.trim().length > 0 ||
     openaiKey.trim().length > 0 ||
     grokKey.trim().length > 0 ||
-    geminiKey.trim().length > 0;
+    geminiKey.trim().length > 0 ||
+    ollamaAvailable;
 
   const handleValidateLicense = async () => {
     setValidatingLicense(true);
@@ -430,8 +463,57 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ apiBaseUrl }) => {
               <SecretInput value={geminiKey} onChange={setGeminiKey} show={showGeminiKey} onToggleShow={() => setShowGeminiKey(!showGeminiKey)} placeholder="AIza..." colors={colors} />
             </div>
 
+            {/* Ollama Local LLM Detection */}
+            <div style={{
+              padding: '16px',
+              borderRadius: 8,
+              backgroundColor: ollamaAvailable ? colors.successLight : colors.bgSecondary,
+              border: `1px solid ${ollamaAvailable ? `${colors.success}44` : colors.border}`,
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 8,
+                backgroundColor: ollamaAvailable ? `${colors.success}22` : `${colors.textMuted}15`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 20, flexShrink: 0,
+              }}>
+                {ollamaChecking ? '...' : ollamaAvailable ? '✓' : '🖥️'}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: colors.text, marginBottom: 2 }}>
+                  Ollama (Local AI)
+                </div>
+                {ollamaChecking ? (
+                  <div style={{ fontSize: 12, color: colors.textMuted }}>Checking for local models...</div>
+                ) : ollamaAvailable ? (
+                  <div style={{ fontSize: 12, color: colors.success, fontWeight: 500 }}>
+                    Detected — {ollamaModelCount} model{ollamaModelCount !== 1 ? 's' : ''} available locally. No API key needed.
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: colors.textMuted }}>
+                    Not detected. <a href="https://ollama.com" target="_blank" rel="noopener noreferrer" style={{ color: colors.primary, textDecoration: 'underline' }}>Install Ollama</a> to run AI models locally — no API keys, data stays on your machine.
+                  </div>
+                )}
+              </div>
+              {ollamaAvailable && (
+                <div style={{
+                  padding: '4px 10px', borderRadius: 6,
+                  backgroundColor: '#10b981', color: '#fff',
+                  fontSize: 11, fontWeight: 700, flexShrink: 0,
+                }}>
+                  LOCAL
+                </div>
+              )}
+            </div>
+
             <InfoBox colors={colors}>
-              At least one API key is required. Anthropic (Claude) is recommended for the best experience with tool calling.
+              {ollamaAvailable
+                ? 'You can use local Ollama models with no API key. Add cloud provider keys below for additional models.'
+                : 'At least one API key is required. Anthropic (Claude) is recommended for the best experience with tool calling.'
+              }
             </InfoBox>
 
             {error && <InfoBox type="error" colors={colors}>{error}</InfoBox>}
