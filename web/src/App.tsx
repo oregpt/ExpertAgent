@@ -295,7 +295,7 @@ const ChatPage: React.FC<{ apiBaseUrl: string; theme: AgentTheme }> = ({ apiBase
 
   return (
     <div style={{ maxWidth: 1600, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 24, color: colors.text }}>Chat with Agent...</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 24, color: colors.text }}>Agent Chat</h1>
 
       {/* Agent Selector */}
       <div

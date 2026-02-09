@@ -152,7 +152,7 @@ export const AdminApp: React.FC<AdminAppProps> = ({ apiBaseUrl, agentId, theme }
             maxWidth: 520,
           }}
         >
-          <h3 style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Chat Widget Preview</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Live Chat</h3>
           <div
             style={{
               background: '#020617',
