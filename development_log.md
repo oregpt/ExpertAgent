@@ -130,3 +130,42 @@ rm ~/Library/Application\ Support/agentinabox-v2/setup-complete.flag \
 | `main_withLocalApp` | Desktop app (Electron + SQLite + setup wizard) |
 
 UI-only changes are cherry-picked to both branches. Desktop-specific changes (setup wizard, licensing endpoints, Electron main process) stay in `main_withLocalApp` only.
+
+---
+
+## Releases & Distribution
+
+### Release Repository (Public)
+**Repo:** https://github.com/oregpt/ExpertAgent-Releases
+
+Since the main `ExpertAgent` repo is **private**, we use a separate **public** repo for distributing installers. This allows anyone to download without GitHub authentication.
+
+### Release URLs
+| Platform | Download URL |
+|----------|--------------|
+| **Windows** | `https://github.com/oregpt/ExpertAgent-Releases/releases/download/<tag>/Expert.Agent.Setup.<version>.exe` |
+| **Mac (Apple Silicon)** | `https://github.com/oregpt/ExpertAgent-Releases/releases/download/<tag>/Expert.Agent-<version>-arm64.dmg` |
+| **Mac (Intel)** | `https://github.com/oregpt/ExpertAgent-Releases/releases/download/<tag>/Expert.Agent-<version>.dmg` |
+
+### Build Locations
+- **Windows builds:** `C:\Users\oreph\Documents\AgenticLedger\Custom Applications\agentinabox\agentinabox_v2\dist-desktop\`
+- **Mac builds:** `/Users/oreph/Documents/Custom Applications/ExpertAgent/dist-desktop/`
+
+### Creating a New Release
+```bash
+# Set token
+$env:GH_TOKEN = $env:GITHUB_TOKEN_OREGPT
+
+# Create release
+gh release create v<version> --repo oregpt/ExpertAgent-Releases \
+  --title "Expert Agent v<version>" \
+  --notes "Release notes here..."
+
+# Upload assets
+gh release upload v<version> "path/to/installer.exe" --repo oregpt/ExpertAgent-Releases
+gh release upload v<version> "path/to/installer-arm64.dmg" --repo oregpt/ExpertAgent-Releases
+gh release upload v<version> "path/to/installer.dmg" --repo oregpt/ExpertAgent-Releases
+```
+
+### Current Release: v2.0.0-alpha.7 (2026-02-09)
+- https://github.com/oregpt/ExpertAgent-Releases/releases/tag/v2.0.0-alpha.7
