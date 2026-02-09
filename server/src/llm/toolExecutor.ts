@@ -19,6 +19,7 @@ import { DEEP_TOOLS, isDeepTool, executeDeepTool } from '../tools/deepTools';
 import { CRON_TOOLS, isCronTool, executeCronTool } from '../tools/cronTools';
 import { AGENT_TOOLS, isAgentTool, executeAgentTool } from '../tools/agentTools';
 import { BROWSER_TOOLS, isBrowserTool, executeBrowserTool } from '../tools/browserTools';
+import { FILESYSTEM_TOOLS, isFilesystemTool, executeFilesystemTool } from '../tools/filesystemTools';
 
 const MAX_TOOL_ITERATIONS = 10;
 
@@ -207,6 +208,14 @@ export async function getDetailedToolsForAgent(agentId: string): Promise<Tool[]>
   if (features.deepTools) {
     tools.push(...BROWSER_TOOLS);
     console.log('[tool-executor] Added browser tools:', BROWSER_TOOLS.map(t => t.name).join(', '));
+  }
+
+  // v2: Add filesystem tools if deepTools feature is enabled (per-agent)
+  // Filesystem tools also share the deepTools gate — they're "deep" tools for local file access
+  // Only enabled in desktop mode (IS_DESKTOP env var set by Electron)
+  if (features.deepTools && process.env.IS_DESKTOP === 'true') {
+    tools.push(...FILESYSTEM_TOOLS);
+    console.log('[tool-executor] Added filesystem tools:', FILESYSTEM_TOOLS.map(t => t.name).join(', '));
   }
 
   return tools;
@@ -429,6 +438,30 @@ export async function executeWithTools(
           input: toolCall.input,
           output,
           success: browserResult.success,
+        });
+        continue;
+      }
+
+      // v2: Check if this is a filesystem tool (fs__read_file, fs__write_file, etc.)
+      if (isFilesystemTool(toolCall.name)) {
+        const fsResult = await executeFilesystemTool(options.agentId, toolCall);
+        
+        const MAX_OUTPUT = 20000;
+        let output = fsResult.output;
+        if (output.length > MAX_OUTPUT) {
+          output = output.slice(0, MAX_OUTPUT) + '\n\n[OUTPUT TRUNCATED]';
+        }
+        
+        toolResultMessages.push({
+          role: 'tool',
+          content: output,
+          toolCallId: toolCall.id,
+        });
+        toolsUsed.push({
+          name: toolCall.name,
+          input: toolCall.input,
+          output,
+          success: fsResult.success,
         });
         continue;
       }
