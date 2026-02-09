@@ -334,8 +334,8 @@ export function createHttpApp() {
   app.use('/api', apiLimiter, proactiveRouter);    // Auth inside router (all routes)
   app.use('/api', apiLimiter, channelRoutes);      // Auth on CRUD routes, webhooks use own verification
 
-  // In production, serve the frontend static files
-  if (process.env.NODE_ENV === 'production') {
+  // Serve the frontend static files in production or desktop mode
+  if (process.env.NODE_ENV === 'production' || IS_DESKTOP) {
     const publicPath = path.join(__dirname, '../../public');
     app.use(express.static(publicPath));
 

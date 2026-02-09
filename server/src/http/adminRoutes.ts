@@ -9,7 +9,7 @@ import { AVAILABLE_MODELS, getAvailableModels, OllamaProvider } from '../llm';
 import { capabilityService } from '../capabilities';
 import { getOrchestrator, getMCPServerManager } from '../mcp-hub';
 import { eq, and, isNull, sql, inArray } from 'drizzle-orm';
-import { getFeatures, canCreateAgent, getLicensingStatus, getAgentFeatures, getAgentFeaturesDetailed, invalidateAgentFeaturesCache, V2_FEATURE_KEYS } from '../licensing';
+import { getFeatures, canCreateAgent, getLicensingStatus, getAgentFeatures, getAgentFeaturesDetailed, invalidateAgentFeaturesCache, V2_FEATURE_KEYS, isCapabilityAllowed } from '../licensing';
 import type { AgentFeatureOverrides } from '../licensing';
 import { createDefaultDocuments } from '../memory';
 import { dbNow } from '../db/date-utils';
@@ -512,7 +512,10 @@ adminRouter.get('/capabilities', async (req, res) => {
   try {
     // Use agentId from query param, or fall back to default agent
     const agentId = (req.query.agentId as string) || (await ensureDefaultAgent());
-    const caps = await capabilityService.getAgentCapabilities(agentId);
+    const allCaps = await capabilityService.getAgentCapabilities(agentId);
+
+    // Filter to only capabilities allowed by the license
+    const caps = allCaps.filter(cap => isCapabilityAllowed(cap.id));
 
     // Check which have tokens configured
     const capsWithTokenStatus = await Promise.all(

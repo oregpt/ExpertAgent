@@ -6,8 +6,9 @@
  */
 
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain } from 'electron';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, execSync, ChildProcess } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 
 let serverProcess: ChildProcess | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -76,7 +77,31 @@ async function startServer(): Promise<void> {
   // Use spawn with system Node.js to avoid ABI mismatch with native modules (better-sqlite3).
   // Electron's fork() uses Electron's bundled Node, which has a different ABI than
   // the Node.js that compiled the native modules.
-  const nodePath = process.platform === 'win32' ? 'node.exe' : 'node';
+  // On macOS, GUI apps don't inherit the shell PATH, so we must resolve node's absolute path.
+  let nodePath = process.platform === 'win32' ? 'node.exe' : 'node';
+  if (process.platform === 'darwin' && !IS_DEV) {
+    // Common Node.js install locations on macOS
+    const candidates = [
+      '/opt/homebrew/bin/node',       // Homebrew on Apple Silicon
+      '/usr/local/bin/node',          // Homebrew on Intel / official installer
+      '/usr/bin/node',                // System
+    ];
+    // Also try to resolve via shell (works if user has node in their login shell PATH)
+    try {
+      const resolved = execSync('/bin/bash -lc "which node"', { timeout: 3000 }).toString().trim();
+      if (resolved && !candidates.includes(resolved)) {
+        candidates.unshift(resolved);
+      }
+    } catch { /* ignore */ }
+
+    const found = candidates.find(p => fs.existsSync(p));
+    if (found) {
+      nodePath = found;
+      console.log(`[desktop] Resolved node path: ${nodePath}`);
+    } else {
+      console.error('[desktop] Could not find node binary! Server will not start.');
+    }
+  }
   
   if (IS_DEV) {
     // Dev mode: run compiled JS (same as prod) to avoid ts-node/ESM issues with system Node

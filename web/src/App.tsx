@@ -499,10 +499,10 @@ const HomePage: React.FC = () => {
             }}
           >
             <div style={{ fontSize: 18, fontWeight: 600, color: colors.text, marginBottom: 4 }}>
-              Test the Chat Widget
+              Chat with Your Agent
             </div>
             <div style={{ color: colors.textSecondary, fontSize: 14 }}>
-              Preview how your agent responds to questions
+              Ask questions and use your agent's capabilities
             </div>
           </div>
         </Link>
