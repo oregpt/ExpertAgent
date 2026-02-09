@@ -58,7 +58,7 @@ const CAPABILITY_METADATA: Record<string, { icon: string; name: string; color: s
 };
 
 // ============================================================================
-// CAPABILITY COMMANDS - Quick actions for each capability
+// CAPABILITY COMMANDS - Quick actions for each MCP server
 // ============================================================================
 interface CapabilityCommand {
   shortcut: string;
@@ -67,44 +67,166 @@ interface CapabilityCommand {
 }
 
 const CAPABILITY_COMMANDS: Record<string, CapabilityCommand[]> = {
-  coingecko: [
-    { shortcut: '/price', naturalLanguage: 'What is the current price of Bitcoin?', category: 'query' },
-    { shortcut: '/trending', naturalLanguage: 'Show me trending cryptocurrencies', category: 'query' },
-    { shortcut: '/market', naturalLanguage: 'Give me overall crypto market stats', category: 'analysis' },
+  // SEC Edgar - SEC filings
+  'sec-edgar': [
+    { shortcut: '!filing', naturalLanguage: "Look up Apple's most recent 10-K filing", category: 'query' },
+    { shortcut: '!search', naturalLanguage: 'Search for recent SEC filings for Tesla', category: 'query' },
+    { shortcut: '!company', naturalLanguage: 'Get company info for ticker MSFT', category: 'query' },
   ],
-  openweather: [
-    { shortcut: '/weather', naturalLanguage: 'What is the weather in New York?', category: 'query' },
-    { shortcut: '/forecast', naturalLanguage: 'Show me the 5-day forecast for London', category: 'query' },
+  // Binance US - Crypto exchange
+  binanceus: [
+    { shortcut: '!balance', naturalLanguage: 'Show my Binance US account balances', category: 'query' },
+    { shortcut: '!price', naturalLanguage: "What's the current price of Bitcoin?", category: 'query' },
+    { shortcut: '!trades', naturalLanguage: 'Show my recent trades for BTCUSD', category: 'query' },
+    { shortcut: '!deposits', naturalLanguage: 'Show my deposit history', category: 'query' },
   ],
-  anyapi: [
-    { shortcut: '/api', naturalLanguage: 'Call an API endpoint', category: 'action' },
-    { shortcut: '/list-apis', naturalLanguage: 'List available APIs', category: 'query' },
+  // Bitwave Price - Crypto pricing
+  'bitwave-price': [
+    { shortcut: '!price', naturalLanguage: 'Get the current price of Ethereum', category: 'query' },
+    { shortcut: '!batch', naturalLanguage: 'Get prices for BTC, ETH, and SOL', category: 'query' },
+    { shortcut: '!assets', naturalLanguage: 'List all supported crypto assets', category: 'query' },
   ],
-  slack: [
-    { shortcut: '/send-slack', naturalLanguage: 'Send a message to #general', category: 'action' },
-    { shortcut: '/channels', naturalLanguage: 'List my Slack channels', category: 'query' },
+  // Kraken - Crypto exchange
+  kraken: [
+    { shortcut: '!balance', naturalLanguage: 'Show my Kraken account balances', category: 'query' },
+    { shortcut: '!price', naturalLanguage: 'Get the current price of BTC on Kraken', category: 'query' },
+    { shortcut: '!orders', naturalLanguage: 'Show my open orders on Kraken', category: 'query' },
+    { shortcut: '!trades', naturalLanguage: 'Show my recent trade history', category: 'query' },
   ],
+  // Coinbase - Crypto exchange
+  coinbase: [
+    { shortcut: '!accounts', naturalLanguage: 'List my Coinbase wallets', category: 'query' },
+    { shortcut: '!price', naturalLanguage: 'Get the spot price for ETH-USD', category: 'query' },
+    { shortcut: '!transactions', naturalLanguage: 'Show my recent Coinbase transactions', category: 'query' },
+  ],
+  // Kaiko - Institutional crypto data
+  kaiko: [
+    { shortcut: '!price', naturalLanguage: 'Get BTC/USD price from Coinbase', category: 'query' },
+    { shortcut: '!vwap', naturalLanguage: 'Get volume-weighted average price for ETH', category: 'query' },
+    { shortcut: '!ohlcv', naturalLanguage: 'Get candlestick data for BTC/USD', category: 'query' },
+  ],
+  // Wallet Balance - Multi-chain wallet balances
+  'wallet-balance': [
+    { shortcut: '!balance', naturalLanguage: 'Get balance of wallet 0x123... on Ethereum', category: 'query' },
+    { shortcut: '!chains', naturalLanguage: 'List supported blockchain networks', category: 'query' },
+    { shortcut: '!multi', naturalLanguage: 'Get balances for multiple wallets', category: 'query' },
+  ],
+  // QuickBooks - Accounting
+  quickbooks: [
+    { shortcut: '!invoices', naturalLanguage: 'Show my recent invoices', category: 'query' },
+    { shortcut: '!customers', naturalLanguage: 'List my customers', category: 'query' },
+    { shortcut: '!accounts', naturalLanguage: 'Show my chart of accounts', category: 'query' },
+    { shortcut: '!bills', naturalLanguage: 'Show my outstanding bills', category: 'query' },
+  ],
+  // Plaid - Banking data
+  plaid: [
+    { shortcut: '!accounts', naturalLanguage: 'List my connected bank accounts', category: 'query' },
+    { shortcut: '!balance', naturalLanguage: 'Get my current account balances', category: 'query' },
+    { shortcut: '!transactions', naturalLanguage: 'Show my recent transactions', category: 'query' },
+  ],
+  // Gmail
   gmail: [
-    { shortcut: '/inbox', naturalLanguage: 'Show my recent emails', category: 'query' },
-    { shortcut: '/send-email', naturalLanguage: 'Send an email', category: 'action' },
+    { shortcut: '!inbox', naturalLanguage: 'Show my recent unread emails', category: 'query' },
+    { shortcut: '!search', naturalLanguage: 'Search emails from John about invoices', category: 'query' },
+    { shortcut: '!send', naturalLanguage: 'Send an email', category: 'action' },
+    { shortcut: '!labels', naturalLanguage: 'List my Gmail labels', category: 'query' },
   ],
-  calendar: [
-    { shortcut: '/events', naturalLanguage: 'Show my upcoming events', category: 'query' },
-    { shortcut: '/schedule', naturalLanguage: 'Schedule a meeting', category: 'action' },
+  // Google Calendar
+  'google-calendar': [
+    { shortcut: '!events', naturalLanguage: 'Show my upcoming calendar events', category: 'query' },
+    { shortcut: '!schedule', naturalLanguage: 'Schedule a meeting for tomorrow at 2pm', category: 'action' },
+    { shortcut: '!search', naturalLanguage: 'Find calendar events about project review', category: 'query' },
   ],
-  sheets: [
-    { shortcut: '/read-sheet', naturalLanguage: 'Read data from a spreadsheet', category: 'query' },
-    { shortcut: '/update-sheet', naturalLanguage: 'Update spreadsheet data', category: 'action' },
+  // Google Sheets
+  'google-sheets': [
+    { shortcut: '!read', naturalLanguage: 'Read data from my spreadsheet', category: 'query' },
+    { shortcut: '!write', naturalLanguage: 'Write data to a spreadsheet', category: 'action' },
+    { shortcut: '!create', naturalLanguage: 'Create a new spreadsheet', category: 'action' },
   ],
-  docs: [
-    { shortcut: '/create-doc', naturalLanguage: 'Create a new document', category: 'action' },
-    { shortcut: '/read-doc', naturalLanguage: 'Read a document', category: 'query' },
+  // Google Docs
+  'google-docs': [
+    { shortcut: '!read', naturalLanguage: 'Read content from a Google Doc', category: 'query' },
+    { shortcut: '!create', naturalLanguage: 'Create a new Google Doc', category: 'action' },
+    { shortcut: '!search', naturalLanguage: 'Search for documents by name', category: 'query' },
+  ],
+  // Slack
+  slack: [
+    { shortcut: '!send', naturalLanguage: 'Send a message to #general channel', category: 'action' },
+    { shortcut: '!channels', naturalLanguage: 'List my Slack channels', category: 'query' },
+    { shortcut: '!search', naturalLanguage: 'Search Slack messages about project updates', category: 'query' },
+    { shortcut: '!history', naturalLanguage: 'Show recent messages from #general', category: 'query' },
+  ],
+  // Notion
+  notion: [
+    { shortcut: '!search', naturalLanguage: 'Search my Notion workspace', category: 'query' },
+    { shortcut: '!page', naturalLanguage: 'Get content from a Notion page', category: 'query' },
+    { shortcut: '!database', naturalLanguage: 'Query a Notion database', category: 'query' },
+    { shortcut: '!create', naturalLanguage: 'Create a new Notion page', category: 'action' },
+  ],
+  // Gamma - Presentations
+  gamma: [
+    { shortcut: '!create', naturalLanguage: 'Create a presentation about AI trends', category: 'action' },
+    { shortcut: '!themes', naturalLanguage: 'List available presentation themes', category: 'query' },
+    { shortcut: '!list', naturalLanguage: 'Show my generated presentations', category: 'query' },
+  ],
+  // TheTie Canton - Canton Network analytics
+  'thetie-canton': [
+    { shortcut: '!metrics', naturalLanguage: 'Get Canton Network cumulative metrics', category: 'query' },
+    { shortcut: '!validators', naturalLanguage: 'Show top Canton validators by stake', category: 'query' },
+    { shortcut: '!holders', naturalLanguage: 'Get top CC token holders', category: 'query' },
+    { shortcut: '!rewards', naturalLanguage: 'Show top reward earners on Canton', category: 'query' },
+  ],
+  // CCView - Canton Network Explorer
+  ccview: [
+    { shortcut: '!governance', naturalLanguage: 'List active governance proposals', category: 'query' },
+    { shortcut: '!validators', naturalLanguage: 'Show Canton validator leaderboard', category: 'query' },
+    { shortcut: '!transfers', naturalLanguage: 'Get recent token transfers', category: 'query' },
+    { shortcut: '!rewards', naturalLanguage: 'Show staking rewards', category: 'query' },
+  ],
+  // CC Explorer Pro - Canton Network
+  ccexplorer: [
+    { shortcut: '!overview', naturalLanguage: 'Get Canton Network overview', category: 'query' },
+    { shortcut: '!governance', naturalLanguage: 'Show governance activity', category: 'query' },
+    { shortcut: '!validators', naturalLanguage: 'List network validators', category: 'query' },
+    { shortcut: '!contracts', naturalLanguage: 'List smart contracts', category: 'query' },
+  ],
+  // Lighthouse - Canton/CantonLoop
+  lighthouse: [
+    { shortcut: '!cns', naturalLanguage: 'List Canton Name Service records', category: 'query' },
+    { shortcut: '!contracts', naturalLanguage: 'List contracts on Canton', category: 'query' },
+    { shortcut: '!governance', naturalLanguage: 'Get governance stats', category: 'query' },
+    { shortcut: '!apps', naturalLanguage: 'Show featured Canton apps', category: 'query' },
+  ],
+  // Trader - Automated trading
+  trader: [
+    { shortcut: '!campaigns', naturalLanguage: 'List my trading campaigns', category: 'query' },
+    { shortcut: '!dashboard', naturalLanguage: 'Show trading dashboard overview', category: 'query' },
+    { shortcut: '!strategies', naturalLanguage: 'List available trading strategies', category: 'query' },
+    { shortcut: '!balance', naturalLanguage: 'Get exchange balance for trading', category: 'query' },
+  ],
+  // FAAM Tracker - Financial asset monitoring
+  'faam-tracker': [
+    { shortcut: '!stats', naturalLanguage: 'Get FAAM tracking statistics', category: 'query' },
+    { shortcut: '!transactions', naturalLanguage: 'Show tracked transactions', category: 'query' },
+    { shortcut: '!wallets', naturalLanguage: 'List tracked wallets', category: 'query' },
+  ],
+  // ChatScraper - Telegram/Slack scraping
+  chatscraper: [
+    { shortcut: '!telegram', naturalLanguage: 'Scrape messages from a Telegram channel', category: 'query' },
+    { shortcut: '!slack', naturalLanguage: 'Scrape messages from a Slack channel', category: 'query' },
+    { shortcut: '!channels', naturalLanguage: 'List configured channels', category: 'query' },
+  ],
+  // AnyAPI - Universal REST API
+  anyapi: [
+    { shortcut: '!call', naturalLanguage: 'Make an API call', category: 'action' },
+    { shortcut: '!list', naturalLanguage: 'List available APIs', category: 'query' },
+    { shortcut: '!docs', naturalLanguage: 'Get API documentation', category: 'query' },
   ],
 };
 
 // Fallback for capabilities without predefined commands
 const getDefaultCommands = (capabilityId: string): CapabilityCommand[] => [
-  { shortcut: `/${capabilityId}`, naturalLanguage: `Use ${capabilityId} capability`, category: 'action' },
+  { shortcut: `!${capabilityId}`, naturalLanguage: `Use ${capabilityId}`, category: 'action' },
 ];
 
 interface EnabledCapability {
