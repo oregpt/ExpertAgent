@@ -622,13 +622,10 @@ export const AgentChatWidget: React.FC<AgentChatWidgetProps> = ({
   };
 
   const handleSendCommand = (text: string) => {
-    setInput(text);
     setShowCommandPopover(false);
     setSelectedCapability(null);
-    // Send immediately after state update
-    setTimeout(() => {
-      sendMessage();
-    }, 50);
+    // Send directly with the text (don't rely on state update)
+    sendMessage(text);
   };
 
   const toggleCommandPopover = () => {
@@ -653,13 +650,14 @@ export const AgentChatWidget: React.FC<AgentChatWidgetProps> = ({
     return CAPABILITY_COMMANDS[capId] || getDefaultCommands(capId);
   };
 
-  const sendMessage = async () => {
-    if (!conversationId || (!input.trim() && attachments.length === 0) || isStreaming) return;
+  const sendMessage = async (directText?: string) => {
+    const messageText = directText ?? input;
+    if (!conversationId || (!messageText.trim() && attachments.length === 0) || isStreaming) return;
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: input,
+      content: messageText,
       timestamp: new Date(),
       attachments: attachments.map((f) => ({
         name: f.name,
@@ -669,7 +667,7 @@ export const AgentChatWidget: React.FC<AgentChatWidgetProps> = ({
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    const text = input;
+    const text = messageText;
     setInput('');
     setAttachments([]);
     setIsStreaming(true);
