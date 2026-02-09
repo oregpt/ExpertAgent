@@ -52,6 +52,7 @@ async function startServer(): Promise<void> {
     EXPERT_AGENT_DATA_DIR: dataDir,
     PORT: SERVER_PORT,
     NODE_ENV: IS_DEV ? 'development' : 'production',
+    BROWSER_HEADLESS: 'false', // Show browser window for user visibility
     // License key is loaded from {dataDir}/license.key by the server on startup.
     // No dev mode bypass — customers must enter a valid license key in the setup wizard.
   };

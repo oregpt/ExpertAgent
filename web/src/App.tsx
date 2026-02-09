@@ -369,8 +369,8 @@ const ChatPage: React.FC<{ apiBaseUrl: string; theme: AgentTheme }> = ({ apiBase
           padding: 16,
           boxShadow: colors.shadowLg,
           border: `1px solid ${colors.border}`,
-          height: 'calc(100vh - 140px)',
-          minHeight: 700,
+          height: 'calc(100vh - 280px)',
+          minHeight: 560,
           display: 'flex',
           flexDirection: 'column' as const,
         }}
