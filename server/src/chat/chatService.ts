@@ -284,7 +284,7 @@ export async function generateReply(
 export async function streamReply(
   conversationId: number,
   userMessage: string,
-  onChunk: (delta: string, isFinal: boolean) => void
+  onChunk: (delta: string, isFinal: boolean, event?: string) => void
 ): Promise<ChatReplyResult> {
   const conv = await getConversationWithMessages(conversationId);
   if (!conv) throw new Error('Conversation not found');
@@ -336,23 +336,30 @@ export async function streamReply(
 
   if (hasTools) {
     // For tool calling, we can't stream during the tool loop
-    // Execute tools first, then stream the final response
+    // Send "thinking" event so UI knows we're working
+    onChunk('', false, 'thinking');
+
+    // Execute tools with progress callback
     const result = await executeWithTools(history, {
       model,
       maxTokens: 2048,
       agentId,
       enableTools: true,
+      onToolCall: (toolName: string) => {
+        // Notify client about tool usage
+        onChunk(`Using ${toolName}...`, false, 'tool');
+      },
     });
     full = result.reply;
     toolsUsed = result.toolsUsed.length > 0 ? result.toolsUsed : undefined;
 
-    // Simulate streaming for the final response
+    // Stream the final response word by word
     const words = full.split(' ');
     for (let i = 0; i < words.length; i++) {
       const word = words[i] + (i < words.length - 1 ? ' ' : '');
       onChunk(word, false);
       // Small delay to simulate streaming
-      await new Promise((r) => setTimeout(r, 10));
+      await new Promise((r) => setTimeout(r, 8));
     }
     onChunk('', true);
   } else {

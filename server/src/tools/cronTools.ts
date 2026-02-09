@@ -20,6 +20,16 @@ import {
   getJob,
 } from '../proactive/cronService';
 
+/**
+ * Helper to format a date that might be a Date object or an ISO string (SQLite).
+ */
+function formatDate(value: Date | string | null | undefined): string {
+  if (!value) return 'N/A';
+  if (typeof value === 'string') return value;
+  if (value instanceof Date) return value.toISOString();
+  return 'N/A';
+}
+
 // ============================================================================
 // Tool Definitions
 // ============================================================================
@@ -135,7 +145,7 @@ export async function executeCronTool(
 
         return {
           success: true,
-          output: `Cron job created (ID: ${job.id}).\nSchedule: ${job.schedule}\nTask: ${job.taskText}\nEnabled: ${job.enabled}\nNext run: ${job.nextRunAt?.toISOString() || 'calculating...'}`,
+          output: `Cron job created (ID: ${job.id}).\nSchedule: ${job.schedule}\nTask: ${job.taskText}\nEnabled: ${job.enabled}\nNext run: ${formatDate(job.nextRunAt)}`,
         };
       }
 
@@ -148,7 +158,7 @@ export async function executeCronTool(
         const formatted = jobs
           .map(
             (j) =>
-              `[ID: ${j.id}] ${j.enabled ? '✅' : '⏸️'} "${j.taskText.slice(0, 80)}${j.taskText.length > 80 ? '...' : ''}"\n  Schedule: ${j.schedule} | Next: ${j.nextRunAt?.toISOString() || 'N/A'} | Last: ${j.lastRunAt?.toISOString() || 'never'}`
+              `[ID: ${j.id}] ${j.enabled ? '✅' : '⏸️'} "${j.taskText.slice(0, 80)}${j.taskText.length > 80 ? '...' : ''}"\n  Schedule: ${j.schedule} | Next: ${formatDate(j.nextRunAt)} | Last: ${formatDate(j.lastRunAt) === 'N/A' ? 'never' : formatDate(j.lastRunAt)}`
           )
           .join('\n\n');
         return { success: true, output: `${jobs.length} cron job(s):\n\n${formatted}` };
@@ -174,7 +184,7 @@ export async function executeCronTool(
 
         return {
           success: true,
-          output: `Cron job ${jobId} updated.\nSchedule: ${updated.schedule}\nTask: ${updated.taskText.slice(0, 80)}\nEnabled: ${updated.enabled}\nNext run: ${updated.nextRunAt?.toISOString() || 'N/A'}`,
+          output: `Cron job ${jobId} updated.\nSchedule: ${updated.schedule}\nTask: ${updated.taskText.slice(0, 80)}\nEnabled: ${updated.enabled}\nNext run: ${formatDate(updated.nextRunAt)}`,
         };
       }
 

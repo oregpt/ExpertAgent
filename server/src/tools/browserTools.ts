@@ -966,7 +966,7 @@ export async function executeBrowserTool(
           })(${maxLength}, ${includeAttributes})
         `;
 
-        const snapshot = await page.evaluate(snapshotScript);
+        const snapshot = await page.evaluate(snapshotScript) as string;
 
         return { success: true, output: snapshot };
       }
@@ -1108,7 +1108,7 @@ export async function executeBrowserTool(
         const context = agentContexts.get(agentId);
         if (context) {
           const pages = context.pages();
-          if (pages.length > 0) {
+          if (pages.length > 0 && pages[0]) {
             agentPages.set(agentId, pages[0]);
           }
         }

@@ -604,12 +604,26 @@ export const AgentChatWidget: React.FC<AgentChatWidgetProps> = ({
           if (!json) continue;
           try {
             const payload = JSON.parse(json);
-            if (payload.event === 'delta') {
+            if (payload.event === 'thinking') {
+              // Agent is processing with tools — keep typing indicator
+              setIsTyping(true);
+            } else if (payload.event === 'tool') {
+              // Agent is using a specific tool — update status message
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, content: `🔧 ${payload.message || 'Using tools...'}` }
+                    : m
+                )
+              );
+            } else if (payload.event === 'delta') {
+              setIsTyping(false); // Stop typing indicator when content starts
               assistantContent += payload.delta;
               setMessages((prev) =>
                 prev.map((m) => (m.id === assistantId ? { ...m, content: assistantContent } : m))
               );
             } else if (payload.event === 'end') {
+              setIsTyping(false);
               if (payload.full && typeof payload.full === 'string') {
                 assistantContent = payload.full;
                 setMessages((prev) =>
