@@ -25,6 +25,7 @@
   "description": "Agent-in-a-Box v2 Server — Enterprise AI agent platform backend",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
+    "@google-cloud/bigquery": "^8.1.1",
     "@google/generative-ai": "^0.24.1",
     "@types/archiver": "^7.0.0",
     "archiver": "^7.0.1",
