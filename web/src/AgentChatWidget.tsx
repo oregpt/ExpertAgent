@@ -222,6 +222,14 @@ const CAPABILITY_COMMANDS: Record<string, CapabilityCommand[]> = {
     { shortcut: '!list', naturalLanguage: 'List available APIs', category: 'query' },
     { shortcut: '!docs', naturalLanguage: 'Get API documentation', category: 'query' },
   ],
+  // GCP Public Datasets - BigQuery blockchain/weather/COVID data
+  'gcp-public-datasets': [
+    { shortcut: '!chains', naturalLanguage: 'List available blockchain datasets', category: 'query' },
+    { shortcut: '!eth', naturalLanguage: 'Query Ethereum transactions', category: 'query' },
+    { shortcut: '!btc', naturalLanguage: 'Query Bitcoin transactions', category: 'query' },
+    { shortcut: '!schema', naturalLanguage: 'Get table schema for a dataset', category: 'query' },
+    { shortcut: '!cost', naturalLanguage: 'Estimate query cost before running', category: 'query' },
+  ],
 };
 
 // Fallback for capabilities without predefined commands
