@@ -203,15 +203,21 @@ export class CapabilityService {
     },
     expiresAt?: Date | undefined
   ): Promise<void> {
-    // Encrypt each token
+    // Encrypt each token with its own embedded IV
+    // Format: "iv_hex:ciphertext_hex:authTag_hex" per token value
+    // The row-level `iv` column is set to "embedded" as a flag for the new format.
     const encryptedTokens: Record<string, string | null> = {};
-    let iv: string | null = null;
+    const iv = 'embedded';
 
     for (const [key, value] of Object.entries(tokens)) {
       if (value) {
-        const encrypted = encrypt(value);
-        encryptedTokens[key] = encrypted.encrypted;
-        iv = encrypted.iv; // Use same IV for all tokens in this batch
+        const tokenIv = crypto.randomBytes(12);
+        const key256 = Buffer.from(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32), 'utf8');
+        const cipher = crypto.createCipheriv('aes-256-gcm', key256, tokenIv);
+        let encrypted = cipher.update(value, 'utf8', 'hex');
+        encrypted += cipher.final('hex');
+        const authTag = cipher.getAuthTag();
+        encryptedTokens[key] = tokenIv.toString('hex') + ':' + encrypted + ':' + authTag.toString('hex');
       } else {
         encryptedTokens[key] = null;
       }
@@ -274,14 +280,26 @@ export class CapabilityService {
     const row = rows[0];
     if (!row) return null;
 
-    // Handle both encrypted (has iv) and unencrypted tokens
+    // Handle encrypted (embedded IV, legacy IV, or unencrypted) tokens
     const decryptedTokens: Record<string, string> = {};
+    const isEmbeddedIv = row.iv === 'embedded';
     const useEncryption = !!row.iv;
 
     for (const key of ['token1', 'token2', 'token3', 'token4', 'token5'] as const) {
       const tokenValue = row[key];
       if (tokenValue) {
-        if (useEncryption) {
+        if (isEmbeddedIv) {
+          // New format: "iv_hex:ciphertext_hex:authTag_hex" — each token has its own IV
+          try {
+            const parts = tokenValue.split(':');
+            if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+              decryptedTokens[key] = decrypt(parts[1] + ':' + parts[2], parts[0]);
+            }
+          } catch {
+            // Skip failed decryption
+          }
+        } else if (useEncryption) {
+          // Legacy format: single IV in row.iv, token = "ciphertext:authTag"
           try {
             decryptedTokens[key] = decrypt(tokenValue, row.iv!);
           } catch {

@@ -5,12 +5,12 @@
  */
 
 import { MCPRegistry } from './registry';
-import { MCPResponse } from './types';
+import { MCPResponse, MCPToolContext } from './types';
 
 export class MCPRouter {
   constructor(private registry: MCPRegistry) {}
 
-  async routeToolCall(serverName: string, toolName: string, toolArgs: any): Promise<MCPResponse> {
+  async routeToolCall(serverName: string, toolName: string, toolArgs: any, context?: MCPToolContext): Promise<MCPResponse> {
     // Get the target server
     const server = this.registry.getServer(serverName);
     if (!server) {
@@ -38,8 +38,8 @@ export class MCPRouter {
     try {
       const validatedArgs = tool.inputSchema.parse(toolArgs);
 
-      // Execute the tool on the server
-      const result = await server.executeTool(toolName, validatedArgs);
+      // Execute the tool on the server (pass context for per-agent token resolution)
+      const result = await server.executeTool(toolName, validatedArgs, context);
 
       return result;
     } catch (error) {

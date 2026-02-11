@@ -755,10 +755,11 @@ adminRouter.get('/mcp/tools', async (_req, res) => {
 // Execute an MCP tool (for testing)
 adminRouter.post('/mcp/execute', async (req, res) => {
   try {
-    const { server, tool, arguments: args } = req.body as {
+    const { server, tool, arguments: args, agentId } = req.body as {
       server: string;
       tool: string;
       arguments: any;
+      agentId?: string;
     };
 
     if (!server || !tool) {
@@ -766,7 +767,8 @@ adminRouter.post('/mcp/execute', async (req, res) => {
     }
 
     const orchestrator = getOrchestrator();
-    const result = await orchestrator.executeAction(server, tool, args || {});
+    const context = agentId ? { agentId } : undefined;
+    const result = await orchestrator.executeAction(server, tool, args || {}, context);
 
     res.json(result);
   } catch (err) {

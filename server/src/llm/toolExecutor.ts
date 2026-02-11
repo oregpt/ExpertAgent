@@ -218,12 +218,14 @@ export async function getDetailedToolsForAgent(agentId: string): Promise<Tool[]>
 async function executeTool(
   serverName: string,
   toolName: string,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
+  agentId?: string
 ): Promise<{ success: boolean; output: string }> {
   const orchestrator = getOrchestrator();
+  const context = agentId ? { agentId } : undefined;
 
   try {
-    const result = await orchestrator.executeAction(serverName, toolName, input);
+    const result = await orchestrator.executeAction(serverName, toolName, input, context);
 
     if (result.success) {
       return {
@@ -460,8 +462,8 @@ export async function executeWithTools(
           continue;
         }
 
-        console.log(`[tool-executor] MCP call: ${serverName}.${action}`, JSON.stringify(params).slice(0, 200));
-        const toolResult = await executeTool(serverName, action, params);
+        console.log(`[tool-executor] MCP call: ${serverName}.${action} (agent: ${options.agentId})`, JSON.stringify(params).slice(0, 200));
+        const toolResult = await executeTool(serverName, action, params, options.agentId);
 
         // Truncate large outputs
         const MAX_TOOL_OUTPUT_CHARS = 20000;
@@ -506,7 +508,7 @@ export async function executeWithTools(
       }
 
       // Execute with the actual tool name (not namespaced)
-      const toolResult = await executeTool(parsed.serverName, parsed.toolName, toolCall.input);
+      const toolResult = await executeTool(parsed.serverName, parsed.toolName, toolCall.input, options.agentId);
 
       const MAX_TOOL_OUTPUT_CHARS = 20000;
       let truncatedOutput = toolResult.output;
