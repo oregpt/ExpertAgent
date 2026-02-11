@@ -7,6 +7,14 @@
 import { z } from 'zod';
 
 // ============================================================================
+// MCP Tool Context — passed through execution chain for per-agent isolation
+// ============================================================================
+
+export interface MCPToolContext {
+  agentId?: string;
+}
+
+// ============================================================================
 // MCP Server Interface
 // ============================================================================
 
@@ -17,7 +25,7 @@ export interface MCPServerInstance {
   tools: MCPTool[];
   initialize(): Promise<void>;
   shutdown(): Promise<void>;
-  executeTool(name: string, args: any): Promise<MCPResponse>;
+  executeTool(name: string, args: any, context?: MCPToolContext): Promise<MCPResponse>;
   listTools(): Promise<MCPTool[]>;
 }
 

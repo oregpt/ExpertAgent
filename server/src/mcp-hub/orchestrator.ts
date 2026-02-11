@@ -10,6 +10,7 @@ import { MCPRegistry } from './registry';
 import { MCPRouter } from './router';
 import {
   MCPResponse,
+  MCPToolContext,
   AgentRequest,
   AgentResponse,
   ActionResult,
@@ -43,7 +44,7 @@ export class MCPOrchestrator extends EventEmitter {
   }
 
   // Execute a single tool call
-  async executeAction(serverName: string, toolName: string, toolArgs: any): Promise<MCPResponse> {
+  async executeAction(serverName: string, toolName: string, toolArgs: any, context?: MCPToolContext): Promise<MCPResponse> {
     const startTime = Date.now();
 
     try {
@@ -55,7 +56,7 @@ export class MCPOrchestrator extends EventEmitter {
         data: { arguments: toolArgs },
       });
 
-      const response = await this.router.routeToolCall(serverName, toolName, toolArgs);
+      const response = await this.router.routeToolCall(serverName, toolName, toolArgs, context);
 
       const executionTime = Date.now() - startTime;
       const enrichedResponse: MCPResponse = {
@@ -103,11 +104,12 @@ export class MCPOrchestrator extends EventEmitter {
   // Execute multiple actions in sequence or parallel
   async executeActions(
     actions: Array<{ server: string; tool: string; arguments: any }>,
-    parallel = false
+    parallel = false,
+    context?: MCPToolContext
   ): Promise<ActionResult[]> {
     if (parallel) {
       const promises = actions.map(async (action) => {
-        const response = await this.executeAction(action.server, action.tool, action.arguments);
+        const response = await this.executeAction(action.server, action.tool, action.arguments, context);
         return {
           server: action.server,
           tool: action.tool,
@@ -122,7 +124,7 @@ export class MCPOrchestrator extends EventEmitter {
       const results: ActionResult[] = [];
 
       for (const action of actions) {
-        const response = await this.executeAction(action.server, action.tool, action.arguments);
+        const response = await this.executeAction(action.server, action.tool, action.arguments, context);
         results.push({
           server: action.server,
           tool: action.tool,
