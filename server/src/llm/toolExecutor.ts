@@ -27,6 +27,8 @@ export interface ToolExecutorOptions {
   maxTokens?: number;
   agentId: string;
   enableTools?: boolean;
+  /** Callback when a tool is being called (for streaming progress) */
+  onToolCall?: (toolName: string) => void;
 }
 
 export interface ToolExecutorResult {
@@ -321,6 +323,11 @@ export async function executeWithTools(
     const toolResultMessages: LLMMessage[] = [];
 
     for (const toolCall of result.toolCalls) {
+      // Notify caller about tool execution (for streaming progress)
+      if (options.onToolCall) {
+        options.onToolCall(toolCall.name);
+      }
+
       // v2: Check if this is a memory tool first
       if (isMemoryTool(toolCall.name)) {
         const memResult = await executeMemoryTool(options.agentId, toolCall);
@@ -347,7 +354,7 @@ export async function executeWithTools(
 
       // v2: Check if this is a deep tool (web__search, web__fetch)
       if (isDeepTool(toolCall.name)) {
-        const deepResult = await executeDeepTool(toolCall);
+        const deepResult = await executeDeepTool(toolCall, options.agentId);
         
         const MAX_OUTPUT = 20000;
         let output = deepResult.output;

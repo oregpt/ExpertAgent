@@ -9,7 +9,7 @@ import { AVAILABLE_MODELS, getAvailableModels, OllamaProvider } from '../llm';
 import { capabilityService } from '../capabilities';
 import { getOrchestrator, getMCPServerManager } from '../mcp-hub';
 import { eq, and, isNull, sql, inArray } from 'drizzle-orm';
-import { getFeatures, canCreateAgent, getLicensingStatus, getAgentFeatures, getAgentFeaturesDetailed, invalidateAgentFeaturesCache, V2_FEATURE_KEYS } from '../licensing';
+import { getFeatures, canCreateAgent, getLicensingStatus, getAgentFeatures, getAgentFeaturesDetailed, invalidateAgentFeaturesCache, V2_FEATURE_KEYS, isCapabilityAllowed } from '../licensing';
 import type { AgentFeatureOverrides } from '../licensing';
 import { createDefaultDocuments } from '../memory';
 import {
@@ -191,6 +191,24 @@ adminRouter.post('/agents', async (req, res) => {
       createDefaultDocuments(id, name).catch((err) => {
         console.error(`[admin] Failed to create default documents for agent ${id}:`, err);
       });
+    }
+
+    // Auto-enable default capabilities for new agents (ones that don't require auth)
+    if (features.mcpHub) {
+      const defaultEnabledCaps = [
+        'anyapi',         // Universal API caller (has built-in free APIs)
+        'coingecko',      // Crypto data (no auth required)
+        'sec-edgar',      // SEC filings (no auth required)
+        'bitwave-price',  // Crypto prices (no auth required)
+        'thetie-canton',  // Canton analytics (no auth required)
+        'faam-tracker',   // Financial asset tracker (no auth required)
+      ];
+      for (const capId of defaultEnabledCaps) {
+        capabilityService.setAgentCapability(id, capId, true).catch((err) => {
+          console.error(`[admin] Failed to auto-enable capability ${capId} for agent ${id}:`, err);
+        });
+      }
+      console.log(`[admin] Auto-enabled ${defaultEnabledCaps.length} default capabilities for agent ${id}`);
     }
 
     res.json({ agent: inserted[0] });
@@ -491,7 +509,10 @@ adminRouter.get('/capabilities', async (req, res) => {
   try {
     // Use agentId from query param, or fall back to default agent
     const agentId = (req.query.agentId as string) || (await ensureDefaultAgent());
-    const caps = await capabilityService.getAgentCapabilities(agentId);
+    const allCaps = await capabilityService.getAgentCapabilities(agentId);
+
+    // Filter to only capabilities allowed by the license
+    const caps = allCaps.filter(cap => isCapabilityAllowed(cap.id));
 
     // Check which have tokens configured
     const capsWithTokenStatus = await Promise.all(
@@ -918,8 +939,8 @@ adminRouter.get('/agents/:agentId/folders', async (req, res) => {
     // Build tree structure
     const buildTree = (parentId: number | null): any[] => {
       return rows
-        .filter((f) => f.parentId === parentId)
-        .map((folder) => ({
+        .filter((f: any) => f.parentId === parentId)
+        .map((folder: any) => ({
           ...folder,
           children: buildTree(folder.id),
         }));
@@ -1317,7 +1338,7 @@ adminRouter.get('/agents/:agentId/documents', async (req, res) => {
 
     // Get tags for each document
     const docsWithTags = await Promise.all(
-      docs.map(async (doc) => {
+      docs.map(async (doc: any) => {
         const docTags = await db
           .select({
             id: tags.id,

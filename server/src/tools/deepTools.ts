@@ -3,8 +3,9 @@
  *
  * Exports all "deep tool" definitions and a unified executor.
  * Deep tools are tools beyond the basic MCP Hub capabilities:
- *   - web__search  — Brave web search
- *   - web__fetch   — Fetch and extract URL content
+ *   - web__search    — Brave web search
+ *   - web__fetch     — Fetch and extract URL content
+ *   - browser__*     — Browser automation (Playwright)
  *
  * Gated by the `deepTools` feature flag.
  * Follows the same pattern as memoryTools.ts.
@@ -20,6 +21,9 @@ import { WEB_FETCH_TOOL, executeWebFetch } from './webFetch';
 // Re-export cron and agent tools for convenience
 export { CRON_TOOLS, isCronTool, executeCronTool } from './cronTools';
 export { AGENT_TOOLS, isAgentTool, executeAgentTool } from './agentTools';
+
+// Re-export browser tools
+export { BROWSER_TOOLS, isBrowserTool, executeBrowserTool, shutdownBrowser, closeAgentBrowser, getBrowserConfig, setBrowserConfig } from './browserTools';
 
 // ============================================================================
 // Tool Definitions
@@ -56,11 +60,12 @@ export function isDeepTool(toolName: string): boolean {
  * Routes to the appropriate handler based on tool name.
  */
 export async function executeDeepTool(
-  toolCall: ToolCall
+  toolCall: ToolCall,
+  agentId?: string
 ): Promise<{ success: boolean; output: string }> {
   switch (toolCall.name) {
     case 'web__search':
-      return executeWebSearch(toolCall.input);
+      return executeWebSearch(toolCall.input, agentId);
 
     case 'web__fetch':
       return executeWebFetch(toolCall.input);

@@ -78,9 +78,14 @@ chatRouter.post('/:conversationId/stream', async (req, res) => {
 
     await appendMessage(id, 'user', message);
 
-    const { reply, sources } = await streamReply(id, message, (delta, _isFinal) => {
-      const payload = { event: 'delta', delta };
-      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    const { reply, sources } = await streamReply(id, message, (delta, _isFinal, eventType) => {
+      if (eventType === 'thinking') {
+        res.write(`data: ${JSON.stringify({ event: 'thinking' })}\n\n`);
+      } else if (eventType === 'tool') {
+        res.write(`data: ${JSON.stringify({ event: 'tool', message: delta })}\n\n`);
+      } else {
+        res.write(`data: ${JSON.stringify({ event: 'delta', delta })}\n\n`);
+      }
     });
 
     const endPayload = { event: 'end', full: reply, sources };

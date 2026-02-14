@@ -86,7 +86,7 @@ const AppContent: React.FC = () => {
             A
           </div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: colors.text }}>Agent-in-a-Box</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: colors.text }}>ExpertAgent</div>
             <div style={{ fontSize: 11, color: colors.textMuted }}>Admin Console</div>
           </div>
         </div>
@@ -232,7 +232,7 @@ const ChatPage: React.FC<{ apiBaseUrl: string; theme: AgentTheme }> = ({ apiBase
 
   return (
     <div style={{ maxWidth: 1600, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 24, color: colors.text }}>Chat with Agent...</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 24, color: colors.text }}>Agent Chat</h1>
 
       {/* Agent Selector */}
       <div
@@ -306,8 +306,8 @@ const ChatPage: React.FC<{ apiBaseUrl: string; theme: AgentTheme }> = ({ apiBase
           padding: 16,
           boxShadow: colors.shadowLg,
           border: `1px solid ${colors.border}`,
-          height: 'calc(100vh - 140px)',
-          minHeight: 700,
+          height: 'calc(100vh - 280px)',
+          minHeight: 560,
           display: 'flex',
           flexDirection: 'column' as const,
         }}
@@ -418,7 +418,7 @@ const HomePage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 600, margin: '40px auto', textAlign: 'center' }}>
-      <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 16, color: colors.text }}>Welcome to Agent-in-a-Box</h1>
+      <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 16, color: colors.text }}>Welcome to ExpertAgent</h1>
       <p style={{ color: colors.textSecondary, marginBottom: 32, fontSize: 16, lineHeight: 1.6 }}>
         Your AI assistant is ready. Use the navigation above to:
       </p>
@@ -436,10 +436,10 @@ const HomePage: React.FC = () => {
             }}
           >
             <div style={{ fontSize: 18, fontWeight: 600, color: colors.text, marginBottom: 4 }}>
-              Test the Chat Widget
+              Chat with Your Agent
             </div>
             <div style={{ color: colors.textSecondary, fontSize: 14 }}>
-              Preview how your agent responds to questions
+              Ask questions and use your agent's capabilities
             </div>
           </div>
         </Link>

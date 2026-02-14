@@ -183,6 +183,46 @@ export const Capabilities: React.FC<CapabilitiesProps> = ({ apiBaseUrl }) => {
     return colors[category || ''] || '#6b7280';
   };
 
+  // Empty state: no agents exist yet
+  if (!loading && agents.length === 0) {
+    return (
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8, color: colors.text }}>MCP Hub</h1>
+        <p style={{ color: colors.textSecondary, marginBottom: 24, fontSize: 14 }}>
+          Enable integrations and configure API credentials per agent.
+        </p>
+        <div
+          style={{
+            background: colors.bgCard,
+            borderRadius: 16,
+            padding: 48,
+            textAlign: 'center',
+            border: `1px solid ${colors.border}`,
+          }}
+        >
+          <p style={{ fontSize: 16, color: colors.textSecondary, marginBottom: 16 }}>
+            No agents found. Create an agent first to configure capabilities.
+          </p>
+          <button
+            onClick={() => { window.location.href = '/config'; }}
+            style={{
+              padding: '12px 24px',
+              borderRadius: 8,
+              border: 'none',
+              backgroundColor: colors.primary,
+              color: colors.primaryText,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Go to Agent Configuration
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div style={{ maxWidth: 900, margin: '0 auto', padding: 24 }}>

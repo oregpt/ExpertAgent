@@ -38,6 +38,7 @@ import { chatScraperServer } from './servers/chatscraper';
 import { gammaServer } from './servers/gamma';
 import { faamTrackerServer } from './servers/faam-tracker';
 import { traderServer } from './servers/trader';
+import { gcpPublicDatasetsServer } from './servers/gcp-public-datasets';
 
 // Configuration for well-known MCP servers (npm packages)
 export interface WellKnownMCPServer {
@@ -249,6 +250,17 @@ export const WELL_KNOWN_MCP_SERVERS: WellKnownMCPServer[] = [
       { name: 'GMAIL_CLIENT_SECRET', label: 'Client Secret', required: true, tokenField: 'token4' },
     ],
   },
+  {
+    id: 'gcp-public-datasets',
+    name: 'GCP Public Datasets',
+    description: 'Query Google BigQuery public datasets (blockchain, weather, COVID, geographic, etc.) with cost controls.',
+    npmPackage: '__bundled__',
+    category: 'analytics',
+    envVars: [
+      { name: 'GOOGLE_APPLICATION_CREDENTIALS', label: 'Service Account JSON', required: true, tokenField: 'token1' },
+      { name: 'GCP_PROJECT_ID', label: 'GCP Project ID', required: true, tokenField: 'token2' },
+    ],
+  },
 ];
 
 export class MCPServerManager {
@@ -394,11 +406,16 @@ export class MCPServerManager {
     this.activeServers.set('trader', traderServer);
     console.log('[mcp-manager] Registered bundled server: trader');
 
+    // 25. GCP Public Datasets (BigQuery)
+    await orchestrator.registerServer(gcpPublicDatasetsServer);
+    this.activeServers.set('gcp-public-datasets', gcpPublicDatasetsServer);
+    console.log('[mcp-manager] Registered bundled server: gcp-public-datasets');
+
     // Load any existing API keys from database for bundled servers
     await this.loadBundledServerTokens();
 
     this.initialized = true;
-    console.log('[mcp-manager] MCP Server Manager initialized with 24 bundled servers');
+    console.log('[mcp-manager] MCP Server Manager initialized with 25 bundled servers');
   }
 
   /**
@@ -413,7 +430,7 @@ export class MCPServerManager {
       
       // Get all agent IDs, with default-agent first
       const allAgents = await db.select({ id: agents.id }).from(agents);
-      const agentIds = ['default-agent', ...allAgents.map(a => a.id).filter(id => id !== 'default-agent')];
+      const agentIds = ['default-agent', ...allAgents.map((a: any) => a.id).filter((id: any) => id !== 'default-agent')];
 
       // Helper to find first agent with valid tokens
       const findTokens = async (capId: string, requireAll4 = false) => {
@@ -453,7 +470,7 @@ export class MCPServerManager {
       }
 
       // Other multi-token servers (may only need 1-2 tokens)
-      const multiTokenCaps = ['binanceus', 'kraken', 'coinbase', 'plaid', 'chatscraper', 'wallet-balance'];
+      const multiTokenCaps = ['binanceus', 'kraken', 'coinbase', 'plaid', 'chatscraper', 'wallet-balance', 'gcp-public-datasets'];
       for (const capId of multiTokenCaps) {
         const tokens = await findTokens(capId);
         if (tokens?.token1) {
@@ -605,6 +622,10 @@ export class MCPServerManager {
         walletBalanceServer.setTokens(tokens);
         console.log(`[mcp-manager] Configured API keys for wallet-balance server`);
         break;
+      case 'gcp-public-datasets':
+        gcpPublicDatasetsServer.setTokens(tokens);
+        console.log(`[mcp-manager] Configured GCP credentials for gcp-public-datasets server`);
+        break;
       default:
         console.warn(`[mcp-manager] Unknown multi-token server: ${serverId}`);
     }
@@ -681,6 +702,7 @@ export class MCPServerManager {
         'notion': notionServer,
         'sheets': googleSheetsServer,
         'email': gmailServer,
+        'gcp-public-datasets': gcpPublicDatasetsServer,
       };
 
       const bundledServer = bundledServerMap[capabilityId];

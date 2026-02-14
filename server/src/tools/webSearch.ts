@@ -10,6 +10,7 @@
 
 import axios from 'axios';
 import { Tool } from '../llm/types';
+import { capabilityService } from '../capabilities';
 
 // ============================================================================
 // Tool Definition (LLM schema)
@@ -64,7 +65,8 @@ interface BraveSearchResponse {
  * Execute web search via Brave Search API
  */
 export async function executeWebSearch(
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
+  agentId?: string
 ): Promise<{ success: boolean; output: string }> {
   const query = input.query as string;
   if (!query) {
@@ -73,12 +75,28 @@ export async function executeWebSearch(
 
   const count = Math.min(Math.max((input.count as number) || 5, 1), 10);
 
-  // Check for API key
-  const apiKey = process.env.BRAVE_API_KEY;
+  // Check for API key: DB capability tokens first, then env var fallback
+  let apiKey: string | undefined;
+
+  if (agentId) {
+    try {
+      const tokens = await capabilityService.getCapabilityTokens(agentId, 'mcp-brave-search');
+      if (tokens?.token1) {
+        apiKey = tokens.token1;
+      }
+    } catch {
+      // DB lookup failed, fall through to env var
+    }
+  }
+
+  if (!apiKey) {
+    apiKey = process.env.BRAVE_API_KEY;
+  }
+
   if (!apiKey) {
     return {
       success: false,
-      output: 'Web search not configured — BRAVE_API_KEY not set. Ask your administrator to configure the Brave Search API key.',
+      output: 'Web search not configured — no Brave API key found. Configure it in MCP Hub under "Brave Search" or set the BRAVE_API_KEY environment variable.',
     };
   }
 
